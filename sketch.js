@@ -854,8 +854,8 @@ function displayMainBodyContent() {
 
                 if (greenDotData.onclick.changeMovementType) setMovementMode(greenDotData.onclick.changeMovementType)
 
-                textAtTop = greenDotData.onclick.textAtTop
-                textAtBottom = greenDotData.onclick.textAtBottom
+                if (greenDotData.onclick.textAtTop) textAtTop = greenDotData.onclick.textAtTop
+                if (greenDotData.onclick.textAtBottom) textAtBottom = greenDotData.onclick.textAtBottom
 
                 if (greenDotData.onclick.backgroundChange) {
                     let css = select("html")
@@ -892,8 +892,8 @@ function displayMainBodyContent() {
 
             if (onArrive.changeMovementType) setMovementMode(onArrive.changeMovementType)
 
-            textAtTop = onArrive.textAtTop
-            textAtBottom = onArrive.textAtBottom
+            if (onArrive.textAtTop) textAtTop = onArrive.textAtTop
+            if (onArrive.textAtBottom) textAtBottom = onArrive.textAtBottom
 
             if (onArrive.backgroundChange) {
                 let css = select("html")
@@ -2165,6 +2165,34 @@ function setupUtopianSky() {
     textAtBottom = "You went to your default starting spot for this" +
         " simulation. \n[PASS] — You got to this page."
 
+    let yourAngle
+    switch (role) {
+        case "R2":
+            yourAngle = 0
+            break
+        case "OT":
+            yourAngle = 7*PI/4
+            break
+        case "MT":
+            yourAngle = 3*PI/2
+            break
+        case "R1":
+            yourAngle = 5*PI/4
+            break
+        case "H1":
+            yourAngle = PI
+            break
+        case "M1":
+            yourAngle = 3*PI/4
+            break
+        case "H2":
+            yourAngle = PI/2
+            break
+        case "M2":
+            yourAngle = PI/4
+            break
+    }
+
     script = {
         // stage 0: at the beginning
         0: {
@@ -2186,7 +2214,7 @@ function setupUtopianSky() {
                     "y": 0,
                     "small": false,
                     "onclick": {
-                        "advanceStageTo": 1,
+                        "advanceStageTo": 0.5,
                         "positions": {
                             // position at the edge of the arena
                             "MT": [0, -160*scalingFactor],
@@ -2200,19 +2228,170 @@ function setupUtopianSky() {
                         },
                         "yourPosition": false,
                         "changeMovementType": false,
-                        "textAtTop": "Select whether to go in or stay out" +
-                            " based on whether your clone has a raised sword" +
-                            " or not.",
-                        "textAtBottom": "[PASS] — You clicked on the dot in" +
-                            " the center.",
-                        "backgroundChange": 'data/FRU P1/Utopian Sky fogGrain2.jpg'
+                        "textAtTop": "Wait for everyone to get to their spot.",
+                        "textAtBottom": "[PASS] — You clicked on the dot in the center.",
+                        "backgroundChange": false,
+                        "fail": false,
+                        "pass": false
                     }
                 }
             ],
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": false
-        }
+        },
+        // stage 0.5: going to the spot
+        0.5: {
+            "arena": fruP1Image,
+            "functions": [
+                // display a mini fatebreaker that's blue if it's spread and
+                // red if it's stack
+                {"name": "stroke", "args": spreadOrStack === "spread" ? [240, 60, 100] : [5, 60, 100]},
+                {"name": "displayFatebreaker", "args": [[0, 0], false]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 1,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Select whether to go in or stay out based on whether your clone has a raised sword or not.",
+                "textAtBottom": false,
+                "backgroundChange": 'data/FRU P1/Utopian Sky fogGrain2.jpg',
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 1: display clone & go in if you need to
+        1: {
+            "arena": fruP1Image,
+            "functions": [
+                // display clone with arm raised or not
+                {"name": "stroke", "args": [0, 0, 80]},
+                {"name": "displayFatebreaker", "args": [[cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor], unsafeClones.includes(role)]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor]},
+                {"name": "displayGreenDot", "args": [cos(yourAngle)*160*scalingFactor, sin(yourAngle)*160*scalingFactor]}
+            ],
+            "greendots": [
+                {
+                    "x": cos(yourAngle)*100*scalingFactor,
+                    "y": sin(yourAngle)*100*scalingFactor,
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (unsafeClones.includes(role) ? 1.5 : 101),
+                        "positions": {
+                            // move in if needed
+                            "MT": [0, -(unsafeClones.includes("MT") ? 100 : 160)*scalingFactor],
+                            "R2": [(unsafeClones.includes("R2") ? 100 : 160)*scalingFactor, 0],
+                            "H1": [-(unsafeClones.includes("H1") ? 100 : 160)*scalingFactor, 0],
+                            "H2": [0, (unsafeClones.includes("H2") ? 100 : 160)*scalingFactor],
+                            "M1": [-(unsafeClones.includes("M1") ? 71 : 113)*scalingFactor, (unsafeClones.includes("M1") ? 71 : 113)*scalingFactor],
+                            "M2": [(unsafeClones.includes("M2") ? 71 : 113)*scalingFactor, (unsafeClones.includes("M2") ? 71 : 113)*scalingFactor],
+                            "R1": [-(unsafeClones.includes("R1") ? 71 : 113)*scalingFactor, -(unsafeClones.includes("R1") ? 71 : 113)*scalingFactor],
+                            "OT": [(unsafeClones.includes("OT") ? 71 : 113)*scalingFactor, -(unsafeClones.includes("OT") ? 71 : 113)*scalingFactor]
+                        },
+                        "yourPosition": [cos(yourAngle)*100*scalingFactor,
+                            sin(yourAngle)*100*scalingFactor],
+                        "changeMovementType": false,
+                        "textAtTop": (unsafeClones.includes(role) ?
+                            "Wait for everyone to move in." :
+                            "You moved in when your clone's arm wasn't raised. This may not directly cause a wipe but it causes confusion."),
+                        "textAtBottom": "You moved in.\n" + (unsafeClones.includes(role) ?
+                            "[PASS] — Your clone's arm is raised." :
+                            "[FAIL] — Your clone's arm isn't raised."),
+                        "backgroundChange": false,
+                        "fail": !unsafeClones.includes(role),
+                        "pass": false
+                    }
+                },
+                {
+                    "x": cos(yourAngle)*160*scalingFactor,
+                    "y": sin(yourAngle)*160*scalingFactor,
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (!unsafeClones.includes(role) ? 1.5 : 101),
+                        "positions": {
+                            // move in if needed
+                            "MT": [0, -(unsafeClones.includes("MT") ? 100 : 160)*scalingFactor],
+                            "R2": [(unsafeClones.includes("R2") ? 100 : 160)*scalingFactor, 0],
+                            "H1": [-(unsafeClones.includes("H1") ? 100 : 160)*scalingFactor, 0],
+                            "H2": [0, (unsafeClones.includes("H2") ? 100 : 160)*scalingFactor],
+                            "M1": [-(unsafeClones.includes("M1") ? 71 : 113)*scalingFactor, (unsafeClones.includes("M1") ? 71 : 113)*scalingFactor],
+                            "M2": [(unsafeClones.includes("M2") ? 71 : 113)*scalingFactor, (unsafeClones.includes("M2") ? 71 : 113)*scalingFactor],
+                            "R1": [-(unsafeClones.includes("R1") ? 71 : 113)*scalingFactor, -(unsafeClones.includes("R1") ? 71 : 113)*scalingFactor],
+                            "OT": [(unsafeClones.includes("OT") ? 71 : 113)*scalingFactor, -(unsafeClones.includes("OT") ? 71 : 113)*scalingFactor]
+                        },
+                        "yourPosition": [cos(yourAngle)*160*scalingFactor,
+                            sin(yourAngle)*160*scalingFactor],
+                        "changeMovementType": false,
+                        "textAtTop": (!unsafeClones.includes(role) ?
+                            "Wait for everyone to move in." :
+                            "You forgot to move in when your clone's arm was raised. This may not directly cause a wipe but it causes confusion."),
+                        "textAtBottom": "You stayed out.\n" + (!unsafeClones.includes(role) ?
+                            "[PASS] — Your clone's arm isn't raised." :
+                            "[FAIL] — Your clone's arm is raised."),
+                        "backgroundChange": false,
+                        "fail": unsafeClones.includes(role),
+                        "pass": false
+                    }
+                }
+            ],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 101: wrong place
+        101: {
+            "arena": fruP1Image,
+            "functions": [
+                // display clone with arm raised or not
+                {"name": "stroke", "args": [0, 0, 80]},
+                {"name": "displayFatebreaker", "args": [[cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor], unsafeClones.includes(role)]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 1.5: going to the spot
+        1.5: {
+            "arena": fruP1Image,
+            "functions": [
+                // display clone with arm raised or not
+                {"name": "stroke", "args": [0, 0, 80]},
+                {"name": "displayFatebreaker", "args": [[cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor], unsafeClones.includes(role)]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 2,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "There's still another possibility where you have to move in.",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
     }
 }
 
