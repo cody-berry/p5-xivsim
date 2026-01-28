@@ -301,10 +301,11 @@ let scalingAdjustX = 0
 let scalingAdjustY = 0
 
 // other variables
-let currentlySelectedMechanic = "Utopian Sky"
-let currentlySelectedBackground = "FRU P1"
-let stage = 2 // the current step you're on. always defaults to 0
+let currentlySelectedMechanic = "Idyllic Dream"
+let currentlySelectedBackground = "M12S P2"
+let stage = 0 // the current step you're on. always defaults to 0
 let mechanicStarted = 0
+let stageStarted = 0
 let textAtTop = ""
 let textAtBottom = ""
 let centerOfBoard
@@ -427,7 +428,13 @@ function setup() {
         let newFavicon = 'data/Gold coins/Gold Coin Bag.ico'
         let timestamp = new Date().getTime()
         link.href = `${newFavicon}?${timestamp}`
-    } if (parseInt(localStorage.getItem("coins")) > 249) {
+    } else {
+        let link = document.getElementById('coin')
+        let newFavicon = 'data/Gold coins/Gold Coin.ico'
+        let timestamp = new Date().getTime()
+        link.href = `${newFavicon}?${timestamp}`
+    }
+    if (parseInt(localStorage.getItem("coins")) > 249) {
         let link = document.getElementById('coin')
         let newFavicon = 'data/Gold coins/Gold Coin Medium Bag.ico'
         let timestamp = new Date().getTime()
@@ -819,7 +826,7 @@ function displayMainBodyContent() {
         let arena = scriptAtStage.arena
 
         tint(0, 0, 100, 10)
-        image(arena, mainBodyX, mainBodyY, mainBodyWidth, mainBodyHeight)
+        displayRotatedImage(arena, mainBodyX, mainBodyY, mainBodyWidth, mainBodyHeight, scriptAtStage.arenaRotation)
         tint(0, 0, 100, 100)
 
         // function part. execute all functions listed
@@ -838,9 +845,11 @@ function displayMainBodyContent() {
         // green dots.
         for (let greenDotData of scriptAtStage.greendots) {
             if (inBoardCenterFormatClickingRange(
-                    [greenDotData.x, greenDotData.y], 10*scalingFactor
+                    [greenDotData.x, greenDotData.y],
+                    greenDotData.small ? 5*scalingFactor : 7.5*scalingFactor
                 ) && mousePressedButNotHeldDown()) {
                 stage = greenDotData.onclick.advanceStageTo
+                stageStarted = millis()
 
                 if (greenDotData.onclick.positions.MT) setPosition("MT", ...greenDotData.onclick.positions.MT)
                 if (greenDotData.onclick.positions.OT) setPosition("OT", ...greenDotData.onclick.positions.OT)
@@ -879,6 +888,7 @@ function displayMainBodyContent() {
             let onArrive = scriptAtStage.onArrive
 
             stage = onArrive.advanceStageTo
+            stageStarted = millis()
 
             if (onArrive.positions.MT) setPosition("MT", ...onArrive.positions.MT)
             if (onArrive.positions.OT) setPosition("OT", ...onArrive.positions.OT)
@@ -893,9 +903,38 @@ function displayMainBodyContent() {
             if (onArrive.changeMovementType) setMovementMode(onArrive.changeMovementType)
 
             if (onArrive.textAtTop) textAtTop = onArrive.textAtTop
-            if (onArrive.textAtBottom) textAtBottom = onArrive.textAtBottom
+            if (onArrive.textAtBottom) textAtBottom = (onArrive.textAtBottom === "cleared") ? "[CLEARED, " + formatSeconds((millis() - mechanicStarted)/1000) + "]" : onArrive.textAtBottom
 
             if (onArrive.backgroundChange) {
+                let css = select("html")
+                css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
+                css = select("body")
+                css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
+            }
+        }
+
+        if (scriptAtStage.delayedAdvance && millis() - stageStarted > scriptAtStage.delayedAdvance.delayMillis) {
+            let delayedAdvance = scriptAtStage.delayedAdvance
+
+            stage = delayedAdvance.advanceStageTo
+            stageStarted = millis()
+
+            if (delayedAdvance.positions.MT) setPosition("MT", ...delayedAdvance.positions.MT)
+            if (delayedAdvance.positions.OT) setPosition("OT", ...delayedAdvance.positions.OT)
+            if (delayedAdvance.positions.H1) setPosition("H1", ...delayedAdvance.positions.H1)
+            if (delayedAdvance.positions.H2) setPosition("H2", ...delayedAdvance.positions.H2)
+            if (delayedAdvance.positions.M1) setPosition("M1", ...delayedAdvance.positions.M1)
+            if (delayedAdvance.positions.M2) setPosition("M2", ...delayedAdvance.positions.M2)
+            if (delayedAdvance.positions.R1) setPosition("R1", ...delayedAdvance.positions.R1)
+            if (delayedAdvance.positions.R2) setPosition("R2", ...delayedAdvance.positions.R2)
+            if (delayedAdvance.yourPosition) setPosition(role, ...delayedAdvance.yourPosition)
+
+            if (delayedAdvance.changeMovementType) setMovementMode(delayedAdvance.changeMovementType)
+
+            if (delayedAdvance.textAtTop) textAtTop = delayedAdvance.textAtTop
+            if (delayedAdvance.textAtBottom) textAtBottom = (delayedAdvance.textAtBottom === "cleared") ? "[CLEARED, " + formatSeconds((millis() - mechanicStarted)/1000) + "]" : onArrive.textAtBottom
+
+            if (delayedAdvance.backgroundChange) {
                 let css = select("html")
                 css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
                 css = select("body")
@@ -1501,6 +1540,13 @@ function mouseInBoundingBox(x1, y1, x2, y2) {
     if (mouseX > x1 && mouseX < x2 && mouseY > y1 && mouseY < y2) return true
 }
 
+// random() function on a list that permamently removes that from the list
+function randomWithoutReplacement(array) {
+    let result = random(array)
+    array.splice(array.indexOf(result), 1)
+    return result
+}
+
 //—————————————————————————————display functions—————————————————————————————\\
 
 // spaces don't matter & remember to use capital casing on the first letter
@@ -1531,6 +1577,106 @@ function displayGlow(n, args) {
     } else {
         console.warn(`No setup function found for: ${currentlySelectedMechanic}`);
     }
+}
+
+function displayUtopianSkySpreadOrStack(spreadOrStack) {
+    push()
+    translateToCenterOfBoard()
+    if (spreadOrStack === "spread") {
+        for (let position of [MT, OT, H1, H2, M1, M2, R1, R2]) {
+            fill(240, 100, 50, min(1000-(millis()-stageStarted), 50))
+            circle(...position, 70*scalingFactor)
+        }
+        for (let position of [MT, OT, H1, H2, M1, M2, R1, R2]) {
+            noFill()
+            glowCircle(200, 100, 100, min(1000-(millis()-stageStarted), 50), 5*scalingFactor, ...position, 70*scalingFactor)
+            push()
+            translate(...position)
+            let angles1 = [random(PI/8, 3*PI/8) + millis()-stageStarted, random(PI/8, 3*PI/8) + millis()-stageStarted, random(PI/8, 3*PI/8) + millis()-stageStarted]
+            let angles2 = [random(5*PI/8, 7*PI/8) + millis()-stageStarted, random(5*PI/8, 7*PI/8) + millis()-stageStarted, random(5*PI/8, 7*PI/8) + millis()-stageStarted]
+            let angles3 = [random(9*PI/8, 11*PI/8) + millis()-stageStarted, random(9*PI/8, 11*PI/8) + millis()-stageStarted, random(9*PI/8, 11*PI/8) + millis()-stageStarted]
+            let angles4 = [random(13*PI/8, 15*PI/8) + millis()-stageStarted, random(13*PI/8, 15*PI/8) + millis()-stageStarted, random(13*PI/8, 15*PI/8) + millis()-stageStarted]
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, 0, 0, cos(angles1[0])*11*scalingFactor, sin(angles1[0])*11*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles1[0])*11*scalingFactor, sin(angles1[0])*11*scalingFactor, cos(angles1[1])*24*scalingFactor, sin(angles1[1])*24*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles1[1])*24*scalingFactor, sin(angles1[1])*24*scalingFactor, cos(angles1[2])*35*scalingFactor, sin(angles1[2])*35*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, 0, 0, cos(angles2[0])*11*scalingFactor, sin(angles2[0])*11*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles2[0])*11*scalingFactor, sin(angles2[0])*11*scalingFactor, cos(angles2[1])*24*scalingFactor, sin(angles2[1])*24*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles2[1])*24*scalingFactor, sin(angles2[1])*24*scalingFactor, cos(angles2[2])*35*scalingFactor, sin(angles2[2])*35*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, 0, 0, cos(angles3[0])*11*scalingFactor, sin(angles3[0])*11*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles3[0])*11*scalingFactor, sin(angles3[0])*11*scalingFactor, cos(angles3[1])*24*scalingFactor, sin(angles3[1])*24*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles3[1])*24*scalingFactor, sin(angles3[1])*24*scalingFactor, cos(angles3[2])*35*scalingFactor, sin(angles3[2])*35*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, 0, 0, cos(angles4[0])*11*scalingFactor, sin(angles4[0])*11*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles4[0])*11*scalingFactor, sin(angles4[0])*11*scalingFactor, cos(angles4[1])*24*scalingFactor, sin(angles4[1])*24*scalingFactor)
+            glowLine(200, 100, 100, min(1000-(millis()-stageStarted), 50), 3*scalingFactor, cos(angles4[1])*24*scalingFactor, sin(angles4[1])*24*scalingFactor, cos(angles4[2])*35*scalingFactor, sin(angles4[2])*35*scalingFactor)
+            pop()
+        }
+    }
+    if (spreadOrStack === "stack") {
+        for (let position of [H1, H2]) {
+            fill(0, 100, 50, min(1000-(millis()-stageStarted), 50))
+            circle(...position, 70*scalingFactor)
+        }
+        for (let position of [H1, H2]) {
+            noFill()
+            glowCircle(0, 100, 100, min(1000-(millis()-stageStarted), 50), 5*scalingFactor, ...position, 70*scalingFactor)
+            push()
+            translate(...position)
+            pop()
+        }
+    }
+    pop()
+}
+
+function displayUtopianSkyBlastingZone(unsafeClones) {
+    push()
+    translateToCenterOfBoard()
+    for (let clone of unsafeClones) {
+        let angle
+        switch (clone) {
+            case "R2":
+                angle = 0
+                break
+            case "OT":
+                angle = 7*PI/4
+                break
+            case "MT":
+                angle = 3*PI/2
+                break
+            case "R1":
+                angle = 5*PI/4
+                break
+            case "H1":
+                angle = PI
+                break
+            case "M1":
+                angle = 3*PI/4
+                break
+            case "H2":
+                angle = PI/2
+                break
+            case "M2":
+                angle = PI/4
+                break
+        }
+        push()
+        rotate(angle)
+        let x = mainBodyWidth/2 + (stageStarted - millis())*scalingFactor
+        if (x > -3*mainBodyWidth/2) {
+            x = max(x, -mainBodyWidth/2)
+            let r = 2*mainBodyWidth/9 // radius of blasting zone
+            strokeWeight(5*scalingFactor)
+            stroke(0, 0, 100)
+            line(mainBodyWidth/2, -r, x, -r)
+            line(mainBodyWidth/2, r, x, r)
+            fill(0, 0, 100, 1)
+            noStroke()
+            rect(mainBodyWidth/2, -r, x, r)
+            stroke(240, 70, 100)
+            line(mainBodyWidth/2, 0, x, 0)
+        }
+        pop()
+    }
+    pop()
 }
 
 // these puddles are always given in the format of [x, y, millisAppeared,
@@ -1762,12 +1908,12 @@ function displayGreenDot(x, y) {
 
     // if you mouse over it, dim it
     if (sqrt((mouseX - x - (mainBodyX + mainBodyWidth/2))**2 +
-        (mouseY - y - (mainBodyY + mainBodyHeight/2))**2) < 10*scalingFactor) {
+        (mouseY - y - (mainBodyY + mainBodyHeight/2))**2) < 7.5*scalingFactor) {
         stroke(120, 100, 80)
     }
     fill(120, 100, 100, 0)
     strokeWeight(scalingFactor)
-    circle(x, y, 20*scalingFactor)
+    circle(x, y, 15*scalingFactor)
     pop()
 }
 
@@ -1858,6 +2004,110 @@ function displayRotatedImage(i, x, y, width=i.width, height=i.height, rotation) 
     pop()
 }
 
+function displayLavaPuddle(i, x, y, spawnTime, size) {
+
+}
+
+function displayBoss(i, x, y, size, facing) {
+    displayRotatedImage(i, centerOfBoard[0] + x - size/2, centerOfBoard[1] + y - size/2, size, size, goodAtan2(facing[0]-x, facing[1]-y) + PI/2 + 0.01)
+}
+
+function displayArenaTransition() {
+    push()
+    fill(0, 0, 100)
+    noStroke()
+    translateToCenterOfBoard()
+    if (millis() - stageStarted < 10) {
+        erase()
+        rect(-10000, -10000, 10000, 10000)
+        noErase()
+        rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth/2, mainBodyWidth/2)
+    }
+    pop()
+}
+
+function displayIncomingArenaTransition() {
+    push()
+    translateToCenterOfBoard()
+    stroke(0, 0, 100, 20)
+    strokeWeight(10*scalingFactor)
+    noFill()
+    circle(0, 0, ((millis() - stageStarted)%1000)*mainBodyWidth/700)
+    circle(0, 0, ((millis() - stageStarted+500)%1000)*mainBodyWidth/700)
+    pop()
+}
+
+function displayM12SP2PlayerClones(stage, cardinalsFirst, tethers) {
+    let radius = 100*scalingFactor
+    let diagXY = radius*sqrt(2)/2
+    let positions = cardinalsFirst ? [[0, -radius], [radius, 0], [0, radius], [-radius, 0]]
+                                   : [[diagXY, -diagXY], [diagXY, diagXY], [-diagXY, diagXY], [-diagXY, -diagXY]]
+    let people = cardinalsFirst ? [tethers[0], tethers[2], tethers[4], tethers[6]]
+                                : [tethers[1], tethers[3], tethers[5], tethers[7]]
+    for (let i = 0; i < 4; i++) {
+        push()
+        translateToCenterOfBoard()
+        translate(...positions[i])
+        let person = people[i]
+        let size = 50*scalingFactor
+        let actualSize = 30*scalingFactor
+        noStroke()
+        fill(0, 0, 50)
+        circle(0, 0, actualSize)
+        fill(0, 0, 100)
+        textSize(actualSize)
+        if (stage < 3) {
+            text("?", 0, -actualSize / 5)
+        } else {
+            textSize(actualSize/2)
+            text(person, 0, -actualSize / 10)
+        }
+        if (stage === 0 && millis() - stageStarted < 2000) {
+            glowLine(200, 50, 100, 40, 10, -size/2, size/2-(millis()-stageStarted)*(size/2000), size/2, size/2-(millis()-stageStarted)*(size/2000))
+        }
+        if (stage === 2) {
+            glowLine(60, 20, 100, 30, 5, 0, 0, currentRealPosition(person)[0] - positions[i][0], currentPosition(person)[1] - positions[i][1])
+        }
+        pop()
+    }
+}
+
+function displayConeTelegraph(h, s, b, a, x, y, angle, size) {
+    push()
+    noStroke()
+    fill(h, s, b, a)
+    stroke(h, s, b, a*2)
+    translate(x, y)
+    translateToCenterOfBoard()
+    rotate(angle)
+    arc(0, 0, 10000, 10000, -size/2, size/2, PIE)
+    strokeWeight(10*scalingFactor)
+    stroke(h, s, b, a*4)
+    noFill()
+    arc(0, 0, ((millis() - stageStarted) % 1000) * (mainBodyWidth/500), ((millis() - stageStarted) % 1000) * (mainBodyWidth/500), -size/2, size/2, OPEN)
+
+    pop()
+}
+
+function displayCircleTelegraph(h, s, b, a, x, y, d) {
+    push()
+    noStroke()
+    fill(h, s, b, a)
+    stroke(h, s, b, a*2)
+    translate(x, y)
+    translateToCenterOfBoard()
+    circle(0, 0, d)
+
+    strokeWeight(d/20)
+    stroke(h, s, b, a*4)
+    noFill()
+    circle(0, 0, ((millis() - stageStarted) % 1000) * (d/1000))
+
+    pop()
+}
+
+
+
 //———————————————————————————————find your role———————————————————————————————\\
 
 function meleeOrRanged(role) {
@@ -1939,6 +2189,8 @@ function FRUWaymark(role) {
             return "C"
     }
 } // any waymark (FRU)
+
+//—————————————————————————————find your position—————————————————————————————\\
 
 // because it's super annoying when you have to write a switch statement
 function yourPosition() {
@@ -2193,10 +2445,40 @@ function setupUtopianSky() {
             break
     }
 
+    let yourOpposite
+    switch (role) {
+        case "R2":
+            yourOpposite = "H1"
+            break
+        case "OT":
+            yourOpposite = "M1"
+            break
+        case "MT":
+            yourOpposite = "H2"
+            break
+        case "R1":
+            yourOpposite = "M2"
+            break
+        case "H1":
+            yourOpposite = "R2"
+            break
+        case "M1":
+            yourOpposite = "OT"
+            break
+        case "H2":
+            yourOpposite = "MT"
+            break
+        case "M2":
+            yourOpposite = "R1"
+            break
+    }
+
+    let arenaRotation = 0.02
     script = {
         // stage 0: at the beginning
         0: {
             "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
             "functions": [
                 // display a mini fatebreaker that's blue if it's spread and
                 // red if it's stack
@@ -2243,6 +2525,7 @@ function setupUtopianSky() {
         // stage 0.5: going to the spot
         0.5: {
             "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
             "functions": [
                 // display a mini fatebreaker that's blue if it's spread and
                 // red if it's stack
@@ -2270,6 +2553,7 @@ function setupUtopianSky() {
         // stage 1: display clone & go in if you need to
         1: {
             "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
             "functions": [
                 // display clone with arm raised or not
                 {"name": "stroke", "args": [0, 0, 80]},
@@ -2287,17 +2571,17 @@ function setupUtopianSky() {
                     "y": sin(yourAngle)*100*scalingFactor,
                     "small": false,
                     "onclick": {
-                        "advanceStageTo": (unsafeClones.includes(role) ? 1.5 : 101),
+                        "advanceStageTo": (unsafeClones.includes(role) ? 2.5 : 101),
                         "positions": {
                             // move in if needed
-                            "MT": [0, -(unsafeClones.includes("MT") ? 100 : 160)*scalingFactor],
-                            "R2": [(unsafeClones.includes("R2") ? 100 : 160)*scalingFactor, 0],
-                            "H1": [-(unsafeClones.includes("H1") ? 100 : 160)*scalingFactor, 0],
-                            "H2": [0, (unsafeClones.includes("H2") ? 100 : 160)*scalingFactor],
-                            "M1": [-(unsafeClones.includes("M1") ? 71 : 113)*scalingFactor, (unsafeClones.includes("M1") ? 71 : 113)*scalingFactor],
-                            "M2": [(unsafeClones.includes("M2") ? 71 : 113)*scalingFactor, (unsafeClones.includes("M2") ? 71 : 113)*scalingFactor],
-                            "R1": [-(unsafeClones.includes("R1") ? 71 : 113)*scalingFactor, -(unsafeClones.includes("R1") ? 71 : 113)*scalingFactor],
-                            "OT": [(unsafeClones.includes("OT") ? 71 : 113)*scalingFactor, -(unsafeClones.includes("OT") ? 71 : 113)*scalingFactor]
+                            "MT": [0, -(unsafeClones.includes("MT") || unsafeClones.includes("H2") ? 100 : 165)*scalingFactor],
+                            "R2": [(unsafeClones.includes("R2") || unsafeClones.includes("H1") ? 100 : 165)*scalingFactor, 0],
+                            "H1": [-(unsafeClones.includes("H1") || unsafeClones.includes("R2") ? 100 : 165)*scalingFactor, 0],
+                            "H2": [0, (unsafeClones.includes("H2") || unsafeClones.includes("MT") ? 100 : 165)*scalingFactor],
+                            "M1": [-(unsafeClones.includes("M1") || unsafeClones.includes("OT") ? 71 : 116.5)*scalingFactor, (unsafeClones.includes("M1") || unsafeClones.includes("OT") ? 71 : 116.5)*scalingFactor],
+                            "M2": [(unsafeClones.includes("M2") || unsafeClones.includes("R1") ? 71 : 116.5)*scalingFactor, (unsafeClones.includes("M2") || unsafeClones.includes("R1") ? 71 : 116.5)*scalingFactor],
+                            "R1": [-(unsafeClones.includes("R1") || unsafeClones.includes("M2") ? 71 : 116.5)*scalingFactor, -(unsafeClones.includes("R1") || unsafeClones.includes("M2") ? 71 : 116.5)*scalingFactor],
+                            "OT": [(unsafeClones.includes("OT") || unsafeClones.includes("M1") ? 71 : 116.5)*scalingFactor, -(unsafeClones.includes("OT") || unsafeClones.includes("M1") ? 71 : 116.5)*scalingFactor]
                         },
                         "yourPosition": [cos(yourAngle)*100*scalingFactor,
                             sin(yourAngle)*100*scalingFactor],
@@ -2352,6 +2636,7 @@ function setupUtopianSky() {
         // stage 101: wrong place
         101: {
             "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
             "functions": [
                 // display clone with arm raised or not
                 {"name": "stroke", "args": [0, 0, 80]},
@@ -2369,6 +2654,7 @@ function setupUtopianSky() {
         // stage 1.5: going to the spot
         1.5: {
             "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
             "functions": [
                 // display clone with arm raised or not
                 {"name": "stroke", "args": [0, 0, 80]},
@@ -2392,7 +2678,1570 @@ function setupUtopianSky() {
             "instantAdvance": false,
             "delayedAdvance": false
         },
+        // stage 2: display clone & go in if you need to
+        2: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // display clone with arm raised or not
+                {"name": "stroke", "args": [0, 0, 80]},
+                {"name": "displayFatebreaker", "args": [[cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor], unsafeClones.includes(role)]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor]},
+                {"name": "displayGreenDot", "args": [cos(yourAngle)*160*scalingFactor, sin(yourAngle)*160*scalingFactor]}
+            ],
+            "greendots": [
+                {
+                    "x": cos(yourAngle)*100*scalingFactor,
+                    "y": sin(yourAngle)*100*scalingFactor,
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (unsafeClones.includes(yourOpposite) ? 2.5 : 102),
+                        "positions": {
+                            // move in if needed
+                            "MT": [0, -(unsafeClones.includes("MT") || unsafeClones.includes("H2") ? 100 : 165)*scalingFactor],
+                            "R2": [(unsafeClones.includes("R2") || unsafeClones.includes("H1") ? 100 : 165)*scalingFactor, 0],
+                            "H1": [-(unsafeClones.includes("H1") || unsafeClones.includes("R2") ? 100 : 165)*scalingFactor, 0],
+                            "H2": [0, (unsafeClones.includes("H2") || unsafeClones.includes("MT") ? 100 : 165)*scalingFactor],
+                            "M1": [-(unsafeClones.includes("M1") || unsafeClones.includes("OT") ? 71 : 116.5)*scalingFactor, (unsafeClones.includes("M1") || unsafeClones.includes("OT") ? 71 : 116.5)*scalingFactor],
+                            "M2": [(unsafeClones.includes("M2") || unsafeClones.includes("R1") ? 71 : 116.5)*scalingFactor, (unsafeClones.includes("M2") || unsafeClones.includes("R1") ? 71 : 116.5)*scalingFactor],
+                            "R1": [-(unsafeClones.includes("R1") || unsafeClones.includes("M2") ? 71 : 116.5)*scalingFactor, -(unsafeClones.includes("R1") || unsafeClones.includes("M2") ? 71 : 116.5)*scalingFactor],
+                            "OT": [(unsafeClones.includes("OT") || unsafeClones.includes("M1") ? 71 : 116.5)*scalingFactor, -(unsafeClones.includes("OT") || unsafeClones.includes("M1") ? 71 : 116.5)*scalingFactor]
+                        },
+                        "yourPosition": [cos(yourAngle)*100*scalingFactor,
+                            sin(yourAngle)*100*scalingFactor],
+                        "changeMovementType": false,
+                        "textAtTop": (unsafeClones.includes(yourOpposite) ?
+                            "Wait for everyone to move in." :
+                            "You moved in when the opposite person didn't. This may not directly cause a wipe but it causes confusion."),
+                        "textAtBottom": "You moved in.\n" + (unsafeClones.includes(yourOpposite) ?
+                            "[PASS] — The person opposite you did move in." :
+                            "[FAIL] — The person opposite you didn't move in."),
+                        "backgroundChange": false,
+                        "fail": !unsafeClones.includes(yourOpposite),
+                        "pass": false
+                    }
+                },
+                {
+                    "x": cos(yourAngle)*160*scalingFactor,
+                    "y": sin(yourAngle)*160*scalingFactor,
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (!unsafeClones.includes(yourOpposite) ? 2.5 : 102),
+                        "positions": {
+                            // move in if needed
+                            "MT": [0, -(unsafeClones.includes("MT") || unsafeClones.includes("H2") ? 100 : 165)*scalingFactor],
+                            "R2": [(unsafeClones.includes("R2") || unsafeClones.includes("H1") ? 100 : 165)*scalingFactor, 0],
+                            "H1": [-(unsafeClones.includes("H1") || unsafeClones.includes("R2") ? 100 : 165)*scalingFactor, 0],
+                            "H2": [0, (unsafeClones.includes("H2") || unsafeClones.includes("MT") ? 100 : 165)*scalingFactor],
+                            "M1": [-(unsafeClones.includes("M1") || unsafeClones.includes("OT") ? 71 : 116.5)*scalingFactor, (unsafeClones.includes("M1") || unsafeClones.includes("OT") ? 71 : 116.5)*scalingFactor],
+                            "M2": [(unsafeClones.includes("M2") || unsafeClones.includes("R1") ? 71 : 116.5)*scalingFactor, (unsafeClones.includes("M2") || unsafeClones.includes("R1") ? 71 : 116.5)*scalingFactor],
+                            "R1": [-(unsafeClones.includes("R1") || unsafeClones.includes("M2") ? 71 : 116.5)*scalingFactor, -(unsafeClones.includes("R1") || unsafeClones.includes("M2") ? 71 : 116.5)*scalingFactor],
+                            "OT": [(unsafeClones.includes("OT") || unsafeClones.includes("M1") ? 71 : 116.5)*scalingFactor, -(unsafeClones.includes("OT") || unsafeClones.includes("M1") ? 71 : 116.5)*scalingFactor]
+                        },
+                        "yourPosition": [cos(yourAngle)*165*scalingFactor,
+                            sin(yourAngle)*165*scalingFactor],
+                        "changeMovementType": false,
+                        "textAtTop": (unsafeClones.includes(yourOpposite) ?
+                            "Wait for everyone to move in." :
+                            "You forgot to move in when the opposite person didn't. This may not directly cause a wipe but it causes confusion."),
+                        "textAtBottom": "You moved in.\n" + (!unsafeClones.includes(yourOpposite) ?
+                            "[PASS] — The person opposite you didn't move in." :
+                            "[FAIL] — The person opposite you did move in."),
+                        "backgroundChange": false,
+                        "fail": unsafeClones.includes(yourOpposite),
+                        "pass": false
+                    }
+                }
+            ],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 102: wrong place
+        102: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // display clone with arm raised or not
+                {"name": "stroke", "args": [0, 0, 80]},
+                {"name": "displayFatebreaker", "args": [[cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor], unsafeClones.includes(role)]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 2.5: going to the spot
+        2.5: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // display clone with arm raised or not
+                {"name": "stroke", "args": [0, 0, 80]},
+                {"name": "displayFatebreaker", "args": [[cos(yourAngle)*100*scalingFactor, sin(yourAngle)*100*scalingFactor], unsafeClones.includes(role)]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 3,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Where's your spread/stack spot?",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 3: spread/stack spot
+        3: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // everything ordinary except there are 40 instances of
+                // displayGreenDot added later in this function via a loop
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 103: wrong place
+        103: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // just normal
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 104,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 104: wrong place, display spread spots
+        104: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // just normal
+                {"name": "displayUtopianSkyBlastingZone", "args": [unsafeClones]},
+                {"name": "displayUtopianSkySpreadOrStack", "args": [spreadOrStack]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 3.5: going to spread spots
+        3.5: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // just normal
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 99,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Congrats! You cleared this test mechanic.",
+                "textAtBottom": "cleared",
+                "backgroundChange": false,
+                "pass": true
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 99: mechanic complete, display spread spots
+        99: {
+            "arena": fruP1Image,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // spread/stack too
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayUtopianSkyBlastingZone", "args": [unsafeClones]},
+                {"name": "displayUtopianSkySpreadOrStack", "args": [spreadOrStack]}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
     }
+
+    // for stage 3 (spread/stack spot), there are 40 dots—5 for each angle.
+    // there are 8 angles, corresponding to each clock spot spaced evenly
+    // around the arena, and then there are 4 spread spots in each angle and
+    // 1 stack spot.
+    let greenDotsStage3 = []
+    for (let angle = 0; angle < TWO_PI-PI/8; angle += PI/4) {
+        greenDotsStage3.push(
+            [cos(angle)*165*scalingFactor, sin(angle)*165*scalingFactor], // stack spot
+            [cos(angle)*140*scalingFactor, sin(angle)*140*scalingFactor], // inner spread spot (tanks)
+            [cos(angle)*190*scalingFactor, sin(angle)*190*scalingFactor], // outer spread spot (healers)
+            [cos(angle - PI/12)*190*scalingFactor, sin(angle - PI/12)*190*scalingFactor], // left spread spot facing wall (ranged)
+            [cos(angle + PI/12)*190*scalingFactor, sin(angle + PI/12)*190*scalingFactor] // right spread spot facing wall (melee)
+        )
+    }
+
+    // add the green dots to the display
+    for (let greenDot of greenDotsStage3) {
+        script[3].functions.push({"name": "displayGreenDot", "args": greenDot})
+    }
+
+    // then, we're going to add the green dot data that makes for what
+    // happens when you click on it. 3 variables (LP, clockspot, & safespot)
+    // are constantly updated with each angle to ensure correct treatment is
+    // given.
+    let greendots = []
+    let LP = 2
+    let clockspot = "R2"
+    let safespot = "R2 H1"
+    let safeAngleLP2 = safeDirections === "OT M1" ? -PI/4 : safeDirections === "R2 H1" ? 0 : safeDirections === "M2 R1" ? PI/4 : PI/2
+    let safeAngleLP1 = safeAngleLP2 - PI
+    for (let angle = 0; angle < TWO_PI-PI/8; angle += PI/4) {
+        greendots.push(
+            // stack spot
+            // valid if:
+            // 1. you are in the correct light party
+            // 2. you are on the correct side
+            // 3. it's stacks
+            {
+                "x": cos(angle)*165*scalingFactor,
+                "y": sin(angle)*165*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": spreadOrStack === "spread" ? 103 : (safespot === safeDirections ? (lightParty() === LP ? 3.5 : 103) : 103),
+                    "positions": spreadOrStack === "spread" ? {
+                        "MT": [cos(safeAngleLP1)*140*scalingFactor, sin(safeAngleLP1)*140*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*190*scalingFactor, sin(safeAngleLP1)*190*scalingFactor],
+                        "M1": [cos(safeAngleLP1 + PI/12)*190*scalingFactor, sin(safeAngleLP1 + PI/12)*190*scalingFactor],
+                        "R1": [cos(safeAngleLP1 - PI/12)*190*scalingFactor, sin(safeAngleLP1 - PI/12)*190*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*140*scalingFactor, sin(safeAngleLP2)*140*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*190*scalingFactor, sin(safeAngleLP2)*190*scalingFactor],
+                        "M2": [cos(safeAngleLP2 + PI/12)*190*scalingFactor, sin(safeAngleLP2 + PI/12)*190*scalingFactor],
+                        "R2": [cos(safeAngleLP2 - PI/12)*190*scalingFactor, sin(safeAngleLP2 - PI/12)*190*scalingFactor],
+                    } : {
+                        "MT": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                    },
+                    "yourPosition": [cos(angle)*165*scalingFactor, sin(angle)*165*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": spreadOrStack === "stack" && lightParty() === LP && safespot === safeDirections ?
+                        "Waiting for everyone to get into position." :
+                        "You went to the wrong spot. You need to make sure:\n" +
+                        (lightParty() === LP ? "☒" : "☐") + " You are on the correct LP/side.\n" +
+                        (safespot === safeDirections ? "☒" : "☐") + " You are on the person who hasn't moved in.\n" +
+                        (spreadOrStack === "stack" ? "☒" : "☐") + " It's stacks. This specific spot is for stacking.",
+                    "textAtBottom": "You went to the stack position at " + clockspot + "'s clockspot.\n" + (lightParty() === LP ?
+                        "[PASS] — You are from LP" + LP + "." :
+                        "[FAIL] — You are from LP" + lightParty() + ", but you went to an LP" + LP + " spot.") + "\n" + (safespot === safeDirections ?
+                        "[PASS] — " + clockspot + "'s clockspot doesn't get hit by AoEs." :
+                        "[FAIL] — " + clockspot + "'s clockspot does get hit by AoEs.") + "\n" + (spreadOrStack === "stack" ?
+                        "[PASS] — It's stacks." :
+                        "[FAIL] — It's spreads."),
+                    "backgroundChange": false,
+                    "fail": spreadOrStack === "spread" || lightParty() !== LP || safespot !== safeDirections,
+                    "pass": false,
+                }
+            },
+
+            // ranged spread spot
+            // valid if:
+            // 1. you are in the correct light party
+            // 2. you are on the correct side
+            // 3. it's spreads
+            // 4. you're a ranged
+            {
+                "x": cos(angle - PI/12)*190*scalingFactor,
+                "y": sin(angle - PI/12)*190*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": spreadOrStack === "stack" ? 103 : (safespot === safeDirections ? (lightParty() === LP ? ((role === "R1" || role === "R2") ? 3.5 : 103) : 103) : 103),
+                    "positions": spreadOrStack === "spread" ? {
+                        "MT": [cos(safeAngleLP1)*140*scalingFactor, sin(safeAngleLP1)*140*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*190*scalingFactor, sin(safeAngleLP1)*190*scalingFactor],
+                        "M1": [cos(safeAngleLP1 + PI/12)*190*scalingFactor, sin(safeAngleLP1 + PI/12)*190*scalingFactor],
+                        "R1": [cos(safeAngleLP1 - PI/12)*190*scalingFactor, sin(safeAngleLP1 - PI/12)*190*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*140*scalingFactor, sin(safeAngleLP2)*140*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*190*scalingFactor, sin(safeAngleLP2)*190*scalingFactor],
+                        "M2": [cos(safeAngleLP2 + PI/12)*190*scalingFactor, sin(safeAngleLP2 + PI/12)*190*scalingFactor],
+                        "R2": [cos(safeAngleLP2 - PI/12)*190*scalingFactor, sin(safeAngleLP2 - PI/12)*190*scalingFactor],
+                    } : {
+                        "MT": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                    },
+                    "yourPosition": [cos(angle - PI/12)*190*scalingFactor, sin(angle - PI/12)*190*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": spreadOrStack === "spread" && lightParty() === LP && safespot === safeDirections && (role === "R1" || role === "R2") ?
+                        "Waiting for everyone to get into position." :
+                        "You went to the wrong spot. You need to make sure:\n" +
+                        (lightParty() === LP ? "☒" : "☐") + " You are on the correct LP/side.\n" +
+                        (safespot === safeDirections ? "☒" : "☐") + " You are on the person who hasn't moved in.\n" +
+                        (spreadOrStack === "spread" ? "☒" : "☐") + " It's spreads. This specific spot is for spreading.\n" +
+                        ((role === "R1" || role === "R2") ? "☒" : "☐") + " You are a ranged. The spot that's left facing the wall is for ranged.",
+                    "textAtBottom": "You went to the stack position at " + clockspot + "'s clockspot.\n" + (lightParty() === LP ?
+                        "[PASS] — You are from LP" + LP + "." :
+                        "[FAIL] — You are from LP" + lightParty() + ", but you went to an LP" + LP + " spot.") + "\n" + (safespot === safeDirections ?
+                        "[PASS] — " + clockspot + "'s clockspot doesn't get hit by AoEs." :
+                        "[FAIL] — " + clockspot + "'s clockspot does get hit by AoEs.") + "\n" + (spreadOrStack === "spread" ?
+                        "[PASS] — It's spreads." :
+                        "[FAIL] — It's stacks.") + "\n" + ((role === "R1" || role === "R2") ?
+                        "[PASS] — You're a ranged." :
+                        "[FAIL] — You're not a ranged."),
+                    "backgroundChange": false,
+                    "fail": spreadOrStack === "stack" || lightParty() !== LP || safespot !== safeDirections || (role !== "R1" && role !== "R2"),
+                    "pass": false,
+                }
+            },
+
+            // melee spread spot
+            // valid if:
+            // 1. you are in the correct light party
+            // 2. you are on the correct side
+            // 3. it's spreads
+            // 4. you're a melee
+            {
+                "x": cos(angle + PI/12)*190*scalingFactor,
+                "y": sin(angle + PI/12)*190*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": spreadOrStack === "stack" ? 103 : (safespot === safeDirections ? (lightParty() === LP ? ((role === "M1" || role === "M2") ? 3.5 : 103) : 103) : 103),
+                    "positions": spreadOrStack === "spread" ? {
+                        "MT": [cos(safeAngleLP1)*140*scalingFactor, sin(safeAngleLP1)*140*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*190*scalingFactor, sin(safeAngleLP1)*190*scalingFactor],
+                        "M1": [cos(safeAngleLP1 + PI/12)*190*scalingFactor, sin(safeAngleLP1 + PI/12)*190*scalingFactor],
+                        "R1": [cos(safeAngleLP1 - PI/12)*190*scalingFactor, sin(safeAngleLP1 - PI/12)*190*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*140*scalingFactor, sin(safeAngleLP2)*140*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*190*scalingFactor, sin(safeAngleLP2)*190*scalingFactor],
+                        "M2": [cos(safeAngleLP2 + PI/12)*190*scalingFactor, sin(safeAngleLP2 + PI/12)*190*scalingFactor],
+                        "R2": [cos(safeAngleLP2 - PI/12)*190*scalingFactor, sin(safeAngleLP2 - PI/12)*190*scalingFactor],
+                    } : {
+                        "MT": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                    },
+                    "yourPosition": [cos(angle + PI/12)*190*scalingFactor, sin(angle + PI/12)*190*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": spreadOrStack === "spread" && lightParty() === LP && safespot === safeDirections && (role === "M1" || role === "M2") ?
+                        "Waiting for everyone to get into position." :
+                        "You went to the wrong spot. You need to make sure:\n" +
+                        (lightParty() === LP ? "☒" : "☐") + " You are on the correct LP/side.\n" +
+                        (safespot === safeDirections ? "☒" : "☐") + " You are on the person who hasn't moved in.\n" +
+                        (spreadOrStack === "spread" ? "☒" : "☐") + " It's spreads. This specific spot is for spreading.\n" +
+                        ((role === "M1" || role === "M2") ? "☒" : "☐") + " You are a melee. The spot that's right facing the wall is for melee.",
+                    "textAtBottom": "You went to the stack position at " + clockspot + "'s clockspot.\n" + (lightParty() === LP ?
+                        "[PASS] — You are from LP" + LP + "." :
+                        "[FAIL] — You are from LP" + lightParty() + ", but you went to an LP" + LP + " spot.") + "\n" + (safespot === safeDirections ?
+                        "[PASS] — " + clockspot + "'s clockspot doesn't get hit by AoEs." :
+                        "[FAIL] — " + clockspot + "'s clockspot does get hit by AoEs.") + "\n" + (spreadOrStack === "spread" ?
+                        "[PASS] — It's spreads." :
+                        "[FAIL] — It's stacks.") + "\n" + ((role === "M1" || role === "M2") ?
+                        "[PASS] — You're a melee." :
+                        "[FAIL] — You're not a melee."),
+                    "backgroundChange": false,
+                    "fail": spreadOrStack === "stack" || lightParty() !== LP || safespot !== safeDirections || (role !== "M1" && role !== "M2"),
+                    "pass": false,
+                }
+            },
+
+            // tank spread spot
+            // valid if:
+            // 1. you are in the correct light party
+            // 2. you are on the correct side
+            // 3. it's spreads
+            // 4. you're a tank
+            {
+                "x": cos(angle)*140*scalingFactor,
+                "y": sin(angle)*140*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": spreadOrStack === "stack" ? 103 : (safespot === safeDirections ? (lightParty() === LP ? ((role === "MT" || role === "OT") ? 3.5 : 103) : 103) : 103),
+                    "positions": spreadOrStack === "spread" ? {
+                        "MT": [cos(safeAngleLP1)*140*scalingFactor, sin(safeAngleLP1)*140*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*190*scalingFactor, sin(safeAngleLP1)*190*scalingFactor],
+                        "M1": [cos(safeAngleLP1 + PI/12)*190*scalingFactor, sin(safeAngleLP1 + PI/12)*190*scalingFactor],
+                        "R1": [cos(safeAngleLP1 - PI/12)*190*scalingFactor, sin(safeAngleLP1 - PI/12)*190*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*140*scalingFactor, sin(safeAngleLP2)*140*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*190*scalingFactor, sin(safeAngleLP2)*190*scalingFactor],
+                        "M2": [cos(safeAngleLP2 + PI/12)*190*scalingFactor, sin(safeAngleLP2 + PI/12)*190*scalingFactor],
+                        "R2": [cos(safeAngleLP2 - PI/12)*190*scalingFactor, sin(safeAngleLP2 - PI/12)*190*scalingFactor],
+                    } : {
+                        "MT": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                    },
+                    "yourPosition": [cos(angle)*140*scalingFactor, sin(angle)*140*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": spreadOrStack === "spread" && lightParty() === LP && safespot === safeDirections && (role === "MT" || role === "OT") ?
+                        "Waiting for everyone to get into position." :
+                        "You went to the wrong spot. You need to make sure:\n" +
+                        (lightParty() === LP ? "☒" : "☐") + " You are on the correct LP/side.\n" +
+                        (safespot === safeDirections ? "☒" : "☐") + " You are on the person who hasn't moved in.\n" +
+                        (spreadOrStack === "spread" ? "☒" : "☐") + " It's spreads. This specific spot is for spreading.\n" +
+                        ((role === "MT" || role === "OT") ? "☒" : "☐") + " You are a tank. The spot that's in is for tanks.",
+                    "textAtBottom": "You went to the stack position at " + clockspot + "'s clockspot.\n" + (lightParty() === LP ?
+                        "[PASS] — You are from LP" + LP + "." :
+                        "[FAIL] — You are from LP" + lightParty() + ", but you went to an LP" + LP + " spot.") + "\n" + (safespot === safeDirections ?
+                        "[PASS] — " + clockspot + "'s clockspot doesn't get hit by AoEs." :
+                        "[FAIL] — " + clockspot + "'s clockspot does get hit by AoEs.") + "\n" + (spreadOrStack === "spread" ?
+                        "[PASS] — It's spreads." :
+                        "[FAIL] — It's stacks.") + "\n" + ((role === "MT" || role === "OT") ?
+                        "[PASS] — You're a tank." :
+                        "[FAIL] — You're not a tank."),
+                    "backgroundChange": false,
+                    "fail": spreadOrStack === "stack" || lightParty() !== LP || safespot !== safeDirections || (role !== "MT" && role !== "OT"),
+                    "pass": false,
+                }
+            },
+
+            // healer spread spot
+            // valid if:
+            // 1. you are in the correct light party
+            // 2. you are on the correct side
+            // 3. it's spreads
+            // 4. you're a healer
+            {
+                "x": cos(angle)*190*scalingFactor,
+                "y": sin(angle)*190*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": spreadOrStack === "stack" ? 103 : (safespot === safeDirections ? (lightParty() === LP ? ((role === "H1" || role === "H2") ? 3.5 : 103) : 103) : 103),
+                    "positions": spreadOrStack === "spread" ? {
+                        "MT": [cos(safeAngleLP1)*140*scalingFactor, sin(safeAngleLP1)*140*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*190*scalingFactor, sin(safeAngleLP1)*190*scalingFactor],
+                        "M1": [cos(safeAngleLP1 + PI/12)*190*scalingFactor, sin(safeAngleLP1 + PI/12)*190*scalingFactor],
+                        "R1": [cos(safeAngleLP1 - PI/12)*190*scalingFactor, sin(safeAngleLP1 - PI/12)*190*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*140*scalingFactor, sin(safeAngleLP2)*140*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*190*scalingFactor, sin(safeAngleLP2)*190*scalingFactor],
+                        "M2": [cos(safeAngleLP2 + PI/12)*190*scalingFactor, sin(safeAngleLP2 + PI/12)*190*scalingFactor],
+                        "R2": [cos(safeAngleLP2 - PI/12)*190*scalingFactor, sin(safeAngleLP2 - PI/12)*190*scalingFactor],
+                    } : {
+                        "MT": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R1": [cos(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP1)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "OT": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "H2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "M2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                        "R2": [cos(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor, sin(safeAngleLP2)*165*scalingFactor + random()*30*scalingFactor - 15*scalingFactor],
+                    },
+                    "yourPosition": [cos(angle)*190*scalingFactor, sin(angle)*190*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": spreadOrStack === "spread" && lightParty() === LP && safespot === safeDirections && (role === "H1" || role === "H2") ?
+                        "Waiting for everyone to get into position." :
+                        "You went to the wrong spot. You need to make sure:\n" +
+                        (lightParty() === LP ? "☒" : "☐") + " You are on the correct LP/side.\n" +
+                        (safespot === safeDirections ? "☒" : "☐") + " You are on the person who hasn't moved in.\n" +
+                        (spreadOrStack === "spread" ? "☒" : "☐") + " It's spreads. This specific spot is for spreading.\n" +
+                        ((role === "H1" || role === "H2") ? "☒" : "☐") + " You are a healer. The spot that's at the wall is for healers.",
+                    "textAtBottom": "You went to the stack position at " + clockspot + "'s clockspot.\n" + (lightParty() === LP ?
+                        "[PASS] — You are from LP" + LP + "." :
+                        "[FAIL] — You are from LP" + lightParty() + ", but you went to an LP" + LP + " spot.") + "\n" + (safespot === safeDirections ?
+                        "[PASS] — " + clockspot + "'s clockspot doesn't get hit by AoEs." :
+                        "[FAIL] — " + clockspot + "'s clockspot does get hit by AoEs.") + "\n" + (spreadOrStack === "spread" ?
+                        "[PASS] — It's spreads." :
+                        "[FAIL] — It's stacks.") + "\n" + ((role === "H1" || role === "H2") ?
+                        "[PASS] — You're a healer." :
+                        "[FAIL] — You're not a healer."),
+                    "backgroundChange": false,
+                    "fail": spreadOrStack === "stack" || lightParty() !== LP || safespot !== safeDirections || (role !== "H1" && role !== "H2"),
+                    "pass": false,
+                }
+            }
+        )
+
+
+
+
+
+
+
+        if (LP === 2 && clockspot === "H2") LP = 1
+        else if (LP === 1 && clockspot === "MT") LP = 2
+
+        switch (clockspot) {
+            case "R2":
+                clockspot = "M2"
+                break
+            case "M2":
+                clockspot = "H2"
+                break
+            case "H2":
+                clockspot = "M1"
+                break
+            case "M1":
+                clockspot = "H1"
+                break
+            case "H1":
+                clockspot = "R1"
+                break
+            case "R1":
+                clockspot = "MT"
+                break
+            case "MT":
+                clockspot = "OT"
+                break
+            case "OT":
+                clockspot = "R2"
+                break
+        }
+
+        switch (safespot) {
+            case "R2 H1":
+                safespot = "M2 R1"
+                break
+            case "M2 R1":
+                safespot = "MT H2"
+                break
+            case "MT H2":
+                safespot = "OT M1"
+                break
+            case "OT M1":
+                safespot = "R2 H1"
+                break
+        }
+    }
+
+    script[3].greendots.push(...greendots)
+
+    instructions.html(`<pre>
+numpad 1 → freeze sketch
+
+Click on one of the buttons at the top to do what it says.
+    Purge Data will purge the win/loss data for this mechanic and only the currently
+     selected mechanic.
+
+Want your coin count back?
+1. Open Devtools with F12 (on Windows, please search if using Mac)
+2. Use the command "localStorage.getItem("coins")". I won't tell you how to set coins.
+Coins are still affecting your favicon.
+
+You are currently on the mechanic ${currentlySelectedMechanic} of ${currentlySelectedBackground}.
+Click on any green dot to move to that location.
+Your time can be found at the bottom of the rectangle just above the simulation arena.
+The time that you cleared can be found on the bottom window after you have cleared.
+This is a quiz, so make sure you've studied.
+
+${updates}
+</pre>`)
+}
+
+function setupEclipticStampede() {
+    erase()
+    rect(0, 0, width, height)
+    noErase()
+
+    setMovementMode(defaultMovementMode)
+
+    mechanicStarted = millis()
+
+    let arena = loadImage('data/M11S/arena.webp')
+    let hitbox = loadImage('data/hitbox.png')
+
+    stage = 0
+    currentlySelectedMechanic = "Ecliptic Stampede"
+    currentlySelectedBackground = "M11S"
+
+    numWinsPerCoinIncrease = 2
+
+    // position everyone in clock spots
+    MT = [0, -50*scalingFactor]
+    OT = [0, 50*scalingFactor]
+    H1 = [-50*scalingFactor, 0]
+    H2 = [50*scalingFactor, 0]
+    M1 = [-35*scalingFactor, 35*scalingFactor]
+    M2 = [35*scalingFactor, 35*scalingFactor]
+    R1 = [-35*scalingFactor, -35*scalingFactor]
+    R2 = [35*scalingFactor, -35*scalingFactor]
+
+    realMT.x = MT[0]
+    realMT.y = MT[1]
+    realOT.x = OT[0]
+    realOT.y = OT[1]
+    realH1.x = H1[0]
+    realH1.y = H1[1]
+    realH2.x = H2[0]
+    realH2.y = H2[1]
+    realM1.x = M1[0]
+    realM1.y = M1[1]
+    realM2.x = M2[0]
+    realM2.y = M2[1]
+    realR1.x = R1[0]
+    realR1.y = R1[1]
+    realR2.x = R2[0]
+    realR2.y = R2[1]
+
+    let ranged = ["H1", "H2", "R1", "R2"]
+    let meteors = [randomWithoutReplacement(ranged)]
+    meteors.push(randomWithoutReplacement(ranged))
+    meteors.sort()
+
+    let northernMeteor
+    let southernMeteor
+
+    let meteorCorners = random([PI/4, 5*PI/4], [3*PI/4, 7*PI/4])
+    // meteors on both ranged = ranged closer to the north goes east
+    if (meteors === ["R1", "R2"]) {
+        if (meteorCorners === [PI/4, 5*PI/4]) {
+            northernMeteor = "R2"
+            southernMeteor = "R1"
+        } else {
+            northernMeteor = "R1"
+            southernMeteor = "R2"
+        }
+    }
+    else if (meteors === ["R1", "R2"]) {
+        if (meteorCorners === [PI/4, 5*PI/4]) {
+            northernMeteor = "R2"
+            southernMeteor = "R1"
+        } else {
+            northernMeteor = "R1"
+            southernMeteor = "R2"
+        }
+    }
+
+    // make the background.
+    let css = select("html")
+    css.style("background-image", "url(\"data/M11S/arena.webp\")")
+    css = select("body")
+    css.style("background-image", "url(\"data/M11S/arena.webp\")")
+
+    textAtTop = "Hi! This sim uses a separate Ecliptic Stampede" +
+        " raidplan—one that, in my opinion, and a lot of other people's" +
+        " opinion, is a lot easier to execute properly, at least easier than" +
+        " the PF strat (\"use eyes lmao one guy in one guy out two guy left" +
+        " two guy right\"). https://raidplan.io/plan/2fukj83wfa63xgcg" +
+        " (scroll down for an actual link, & this is someone else's raidplan" +
+        " and I take no credit)"
+    textAtBottom = "You went to your default starting spot for this" +
+        " simulation. \n[PASS] — You got to this page."
+
+    let arenaRotation = 0
+    script = {
+        // stage 0: start
+        0: {
+            "arena": arena,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // display tyrant at center
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 130*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [0, 0]}
+            ],
+            "greendots": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": 0.5,
+                        "positions": {
+                            // position out in LPs
+                            "MT": [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                            "OT": [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                            "M1": [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                            "M2": [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                            "H1": [-60*scalingFactor, 60*scalingFactor],
+                            "H2": [60*scalingFactor, 60*scalingFactor],
+                            "R1": [-60*scalingFactor, -60*scalingFactor],
+                            "R2": [60*scalingFactor, -60*scalingFactor]
+                        },
+                        "yourPosition": false,
+                        "changeMovementType": false,
+                        "textAtTop": "Wait for everyone to get to their spot.",
+                        "textAtBottom": "[PASS] — You clicked on the dot in the center.",
+                        "backgroundChange": false,
+                        "fail": false,
+                        "pass": false
+                    }
+                }
+            ],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 0.5: going to the spot
+        0.5: {
+            "arena": arena,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // display tyrant at center
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 130*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": meleeOrRanged(role) === "melee" ? 2 : northernMeteor === role ? 1 : southernMeteor === role ? 1 : 2,
+                "positions": {
+                    // ranged CAN go in
+                    "H1": !(ranged.includes("H1")) ? [-60*scalingFactor, 60*scalingFactor] : [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                    "H2": !(ranged.includes("H2")) ? [60*scalingFactor, 60*scalingFactor] : [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                    "R1": !(ranged.includes("R1")) ? [-60*scalingFactor, -60*scalingFactor] : [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor],
+                    "R2": !(ranged.includes("R2")) ? [60*scalingFactor, -60*scalingFactor] : [random()*20*scalingFactor - 10*scalingFactor, random()*20*scalingFactor - 10*scalingFactor]
+                },
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Please select where you're going to bait your puddles.",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 1: meteor baits
+        1: {
+            "arena": arena,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                // display tyrant at center
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 130*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": meleeOrRanged(role) === "melee" ? 2 : northernMeteor === role ? 1 : southernMeteor === role ? 1 : 2,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Please select where you're going to bait your puddles.",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+    }
+
+
+    instructions.html(`<pre>
+numpad 1 → freeze sketch
+
+Strategy: <a href="https://raidplan.io/plan/2fukj83wfa63xgcg">https://raidplan.io/plan/2fukj83wfa63xgcg</a>
+
+Click on one of the buttons at the top to do what it says.
+    Purge Data will purge the win/loss data for this mechanic and only the currently
+     selected mechanic.
+
+Want your coin count back?
+1. Open Devtools with F12 (on Windows, please search if using Mac)
+2. Use the command "localStorage.getItem("coins")". I won't tell you how to set coins.
+Coins are still affecting your favicon.
+
+You are currently on the mechanic ${currentlySelectedMechanic} of ${currentlySelectedBackground}.
+Click on any green dot to move to that location.
+Your time can be found at the bottom of the rectangle just above the simulation arena.
+The time that you cleared can be found on the bottom window after you have cleared.
+This is a quiz, so make sure you've studied.
+
+${updates}
+</pre>`)
+}
+
+function setupIdyllicDream() {
+    erase()
+    rect(0, 0, width, height)
+    noErase()
+
+    setMovementMode(defaultMovementMode)
+
+    mechanicStarted = millis()
+
+    let M12SP2Floor = loadImage('data/M12S P2/Floor.webp')
+    let M12SP2Floor2 = loadImage('data/M12S P2/Dimension 1.jpg')
+    let M12SP2Floor3 = loadImage('data/M12S P2/Dimension 2.jpg')
+    let hitbox = loadImage('data/hitbox.png')
+
+    stage = 0
+    currentlySelectedMechanic = "Idyllic Dream"
+    currentlySelectedBackground = "M12S P2"
+
+    numWinsPerCoinIncrease = 0.2
+
+    // position everyone in clock spots
+    MT = [0, -50*scalingFactor]
+    OT = [50*scalingFactor, 0]
+    H1 = [-50*scalingFactor, 0]
+    H2 = [0, 50*scalingFactor]
+    M1 = [-35*scalingFactor, 35*scalingFactor]
+    M2 = [35*scalingFactor, 35*scalingFactor]
+    R1 = [-35*scalingFactor, -35*scalingFactor]
+    R2 = [35*scalingFactor, -35*scalingFactor]
+
+    let cardinalsFirst = random([true, false])
+
+    let shuffledPlayers = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"]
+    shuffledPlayers.sort((a, b) => random() - 0.5)
+
+    let NTether = shuffledPlayers[0]
+    let NETether = shuffledPlayers[1]
+    let ETether = shuffledPlayers[2]
+    let SETether = shuffledPlayers[3]
+    let STether = shuffledPlayers[4]
+    let SWTether = shuffledPlayers[5]
+    let WTether = shuffledPlayers[6]
+    let NWTether = shuffledPlayers[7]
+
+    let yourTetherNumber = shuffledPlayers.indexOf(role)
+    let yourTether = {
+        0: "N",
+        1: "NE",
+        2: "E",
+        3: "SE",
+        4: "S",
+        5: "SW",
+        6: "W",
+        7: "NW"
+    }[yourTetherNumber]
+    print(yourTether)
+
+    let circleAoECloneNorth = random([true, false])
+    let northSidesSafe = random([true, false])
+    let southSidesSafe = !northSidesSafe
+
+    let stacksFirst = random([true, false])
+
+
+    // make the background.
+    let css = select("html")
+    css.style("background-image", "url(\"data/M12S P2/background.jpg\")")
+    css = select("body")
+    css.style("background-image", "url(\"data/M12S P2/background.jpg\")")
+
+    textAtTop = "Hi! Idyllic Dream is a complex, brain-melting mech. If" +
+        " you've studied for it, then here's a sim for it! This sim uses DN" +
+        " strats, linked at the bottom."
+    textAtBottom = "You went to your default starting spot for this" +
+        " simulation. \n[PASS] — You got to this page."
+
+
+    let arenaRotation = 0
+    script = {
+        // stage 0: at the beginning
+        0: {
+            "arena": M12SP2Floor,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [0, 0]}
+            ],
+            "greendots": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": 1,
+                        "positions": {},
+                        "yourPosition": false,
+                        "changeMovementType": false,
+                        "textAtTop": "You will be fed information for 16 seconds.",
+                        "textAtBottom": "[PASS] — You clicked on the dot in the center.",
+                        "backgroundChange": false,
+                        "fail": false,
+                        "pass": false
+                    }
+                }
+            ],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // stage 1: first clones appear
+        1: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [0, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 3000,
+                "advanceStageTo": 1.25,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.25: second clones appear
+        1.25: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [1, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [0, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 3000,
+                "advanceStageTo": 1.5,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.5: tethers appear
+        1.5: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [2, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [2, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 1.65,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.65: people go to spot
+        1.65: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [2, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [2, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 1.75,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.75: brief display of clones
+        1.75: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayIncomingArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 2000,
+                "advanceStageTo": 1.8,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.8: dimension 2
+        1.8: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 1.85,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.85: clone hitboxes
+        1.85: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 2000,
+                "advanceStageTo": 1.9,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.9: clone telegraphs
+        1.9: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? -PI/2 : 0, PI/2]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? PI/2 : PI, PI/2]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? -PI/2 : 0, PI/2]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? PI/2 : PI, PI/2]},
+                {"name": "displayCircleTelegraph", "args": [20, 80, 100, 5, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 200*scalingFactor]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 1.95,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 1.95: clone telegraphs + incoming arena transition
+        1.95: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayIncomingArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? -PI/2 : 0, PI/2]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? PI/2 : PI, PI/2]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? -PI/2 : 0, PI/2]},
+                {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? PI/2 : PI, PI/2]},
+                {"name": "displayCircleTelegraph", "args": [20, 80, 100, 5, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 200*scalingFactor]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 2000,
+                "advanceStageTo": 2,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Which intercardinal should you preposition at to grab your boss clone?",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // stage 2: intercardinal preposition
+        2: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [50*scalingFactor, 50*scalingFactor]},
+                {"name": "displayGreenDot", "args": [-50*scalingFactor, 50*scalingFactor]},
+                {"name": "displayGreenDot", "args": [-50*scalingFactor, -50*scalingFactor]},
+                {"name": "displayGreenDot", "args": [50*scalingFactor, -50*scalingFactor]}
+            ],
+            "greendots": [{
+                "x": 50*scalingFactor,
+                "y": -50*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": (role === NTether || role === STether) ? 2.2 : 102,
+                    "positions": {},
+                    "yourPosition": [40*scalingFactor + random()*20*scalingFactor, -40*scalingFactor - random()*20*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": (role === NTether || role === STether) ?
+                    "Wait for boss clones to appear." :
+                    `This spot is for the N tether player or the S tether player, not the ${yourTether} tether player.`,
+                    "textAtBottom": ((role === NTether || role === STether) ? "[PASS] — " : "[FAIL] — ") +
+                    `You are the ${yourTether} tether player.`,
+                    "backgroundChange": false,
+                    "fail": false,
+                    "pass": false
+                }
+            }, {
+                "x": 50*scalingFactor,
+                "y": 50*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": (role === NETether || role === SWTether) ? 2.2 : 102,
+                    "positions": {},
+                    "yourPosition": [40*scalingFactor + random()*20*scalingFactor, 40*scalingFactor + random()*20*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": (role === NETether || role === SWTether) ?
+                        "Wait for boss clones to appear." :
+                        `This spot is for the NE tether player or the SW tether player, not the ${yourTether} tether player.`,
+                    "textAtBottom": ((role === NETether || role === SWTether) ? "[PASS] — " : "[FAIL] — ") +
+                        `You are the ${yourTether} tether player.`,
+                    "backgroundChange": false,
+                    "fail": false,
+                    "pass": false
+                }
+            }, {
+                "x": -50*scalingFactor,
+                "y": 50*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": (role === ETether || role === WTether) ? 2.2 : 102,
+                    "positions": {},
+                    "yourPosition": [-40*scalingFactor - random()*20*scalingFactor, 40*scalingFactor + random()*20*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": (role === ETether || role === WTether) ?
+                        "Wait for boss clones to appear." :
+                        `This spot is for the E tether player or the W tether player, not the ${yourTether} tether player.`,
+                    "textAtBottom": ((role === ETether || role === WTether) ? "[PASS] — " : "[FAIL] — ") +
+                        `You are the ${yourTether} tether player.`,
+                    "backgroundChange": false,
+                    "fail": false,
+                    "pass": false
+                }
+            }, {
+                "x": -50*scalingFactor,
+                "y": -50*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": (role === SETether || role === NWTether) ? 2.2 : 102,
+                    "positions": {},
+                    "yourPosition": [-40*scalingFactor - random()*20*scalingFactor, -40*scalingFactor - random()*20*scalingFactor],
+                    "changeMovementType": false,
+                    "textAtTop": (role === SETether || role === NWTether) ?
+                        "Wait for boss clones to appear." :
+                        `This spot is for the SE tether player or the NW tether player, not the ${yourTether} tether player.`,
+                    "textAtBottom": ((role === SETether || role === NWTether) ? "[PASS] — " : "[FAIL] — ") +
+                        `You are the ${yourTether} tether player.`,
+                    "backgroundChange": false,
+                    "fail": false,
+                    "pass": false
+                }
+            }],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 102: wrong preposition spot
+        102: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 2.2: first boss clones spawn
+        2.2: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 2.4,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 2.4: second boss clones spawn
+        2.4: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 2.6,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 2.6: third boss clones spawn
+        2.6: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 2.8,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 2.8: fourth boss clones spawn
+        2.8: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 3,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Select which tether you are going to take.",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 3: Select your tether.
+        3: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 1000,
+                "advanceStageTo": 3,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Select which tether you are going to take.",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+    }
+
+    script[1.5].delayedAdvance.positions[NTether] = [0, -50*scalingFactor]
+    script[1.5].delayedAdvance.positions[ETether] = [50*scalingFactor, 0]
+    script[1.5].delayedAdvance.positions[WTether] = [-50*scalingFactor, 0]
+    script[1.5].delayedAdvance.positions[STether] = [0, 50*scalingFactor]
+    script[1.5].delayedAdvance.positions[SWTether] = [-35*scalingFactor, 35*scalingFactor]
+    script[1.5].delayedAdvance.positions[SETether] = [35*scalingFactor, 35*scalingFactor]
+    script[1.5].delayedAdvance.positions[NWTether] = [-35*scalingFactor, -35*scalingFactor]
+    script[1.5].delayedAdvance.positions[NETether] = [35*scalingFactor, -35*scalingFactor]
+
+    script[2].greendots[0].onclick.positions[NTether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[NETether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[ETether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[SETether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[STether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[SWTether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[WTether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[0].onclick.positions[NWTether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+
+    script[2].greendots[1].onclick.positions[NTether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[NETether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[ETether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[SETether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[STether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[SWTether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[WTether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[1].onclick.positions[NWTether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+
+    script[2].greendots[2].onclick.positions[NTether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[NETether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[ETether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[SETether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[STether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[SWTether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[WTether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[2].onclick.positions[NWTether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+
+    script[2].greendots[3].onclick.positions[NTether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[NETether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[ETether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[SETether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[STether] = [(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[SWTether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[WTether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
+    script[2].greendots[3].onclick.positions[NWTether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+
+    instructions.html(`<pre>
+numpad 1 → freeze sketch
+
+Strategy: <a href="https://raidplan.io/plan/zoeminUT6l2gaOWp">https://raidplan.io/plan/zoeminUT6l2gaOWp</a>
+
+Click on one of the buttons at the top to do what it says.
+    Purge Data will purge the win/loss data for this mechanic and only the currently
+     selected mechanic.
+
+Want your coin count back?
+1. Open Devtools with F12 (on Windows, please search if using Mac)
+2. Use the command "localStorage.getItem("coins")". I won't tell you how to set coins.
+Coins are still affecting your favicon.
+
+You are currently on the mechanic ${currentlySelectedMechanic} of ${currentlySelectedBackground}.
+Click on any green dot to move to that location.
+Your time can be found at the bottom of the rectangle just above the simulation arena.
+The time that you cleared can be found on the bottom window after you have cleared.
+This is a quiz, so make sure you've studied.
+
+${updates}
+</pre>`)
 }
 
 
@@ -2458,34 +4307,34 @@ function glowCircle(h, s, b, a, weight, param1, param2, param3) {
     circle(param1, param2, param3)
 }
 
-function glowPoint(h, s, b, a, weight, param1, param2) {
+function glowLine(h, s, b, a, weight, param1, param2, param3, param4) {
     strokeWeight(weight)
     stroke(h, s, b, a)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 
     strokeWeight(weight*9/10)
     stroke(h, s*1.5/3, b*1.5/3 + 100/2, a/2)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 
     strokeWeight(weight*4/5)
     stroke(h, s*1.5/3, b*1.5/3 + 100/2, a)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 
     strokeWeight(weight*7/10)
     stroke(h, s*1/4, b*1/4 + 300/4, a/2)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 
     strokeWeight(weight*3/5)
     stroke(h, s*1/4, b*1/4 + 300/4, a)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 
     strokeWeight(weight*1/2)
     stroke(h, 0, 100, a/2)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 
     strokeWeight(weight*2/5)
     stroke(h, 0, 100, a)
-    point(param1, param2)
+    line(param1, param2, param3, param4)
 }
 
 function glowText(h, s, b, a, weight, param1, param2, param3) {
