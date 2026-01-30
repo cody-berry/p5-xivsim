@@ -864,7 +864,7 @@ function displayMainBodyContent() {
                 if (greenDotData.onclick.changeMovementType) setMovementMode(greenDotData.onclick.changeMovementType)
 
                 if (greenDotData.onclick.textAtTop) textAtTop = greenDotData.onclick.textAtTop
-                if (greenDotData.onclick.textAtBottom) textAtBottom = greenDotData.onclick.textAtBottom
+                if (greenDotData.onclick.textAtBottom) textAtBottom = (greenDotData.onclick.textAtBottom === "cleared") ? "[CLEARED, " + formatSeconds((millis() - mechanicStarted)/1000) + "]" : greenDotData.onclick.textAtBottom
 
                 if (greenDotData.onclick.backgroundChange) {
                     let css = select("html")
@@ -872,6 +872,9 @@ function displayMainBodyContent() {
                     css = select("body")
                     css.style("background-image", "url(\"" + greenDotData.onclick.backgroundChange + "\")")
                 }
+
+                if (greenDotData.onclick.pass) updateWins()
+                if (greenDotData.onclick.fail) updateLosses()
             }
         }
 
@@ -911,6 +914,8 @@ function displayMainBodyContent() {
                 css = select("body")
                 css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
             }
+
+            if (onArrive.pass) updateWins()
         }
 
         if (scriptAtStage.delayedAdvance && millis() - stageStarted > scriptAtStage.delayedAdvance.delayMillis) {
@@ -932,7 +937,7 @@ function displayMainBodyContent() {
             if (delayedAdvance.changeMovementType) setMovementMode(delayedAdvance.changeMovementType)
 
             if (delayedAdvance.textAtTop) textAtTop = delayedAdvance.textAtTop
-            if (delayedAdvance.textAtBottom) textAtBottom = (delayedAdvance.textAtBottom === "cleared") ? "[CLEARED, " + formatSeconds((millis() - mechanicStarted)/1000) + "]" : onArrive.textAtBottom
+            if (delayedAdvance.textAtBottom) textAtBottom = (delayedAdvance.textAtBottom === "cleared") ? "[CLEARED, " + formatSeconds((millis() - mechanicStarted)/1000) + "]" : delayedAdvance.textAtBottom
 
             if (delayedAdvance.backgroundChange) {
                 let css = select("html")
@@ -940,6 +945,8 @@ function displayMainBodyContent() {
                 css = select("body")
                 css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
             }
+
+            if (delayedAdvance.pass) updateWins()
         }
 
     } else console.warn(`Stage ${stage} not found.`)
@@ -2008,8 +2015,12 @@ function displayLavaPuddle(i, x, y, spawnTime, size) {
 
 }
 
-function displayBoss(i, x, y, size, facing) {
+function displayBoss(i, x, y, size, facing, tether=false) {
     displayRotatedImage(i, centerOfBoard[0] + x - size/2, centerOfBoard[1] + y - size/2, size, size, goodAtan2(facing[0]-x, facing[1]-y) + PI/2 + 0.01)
+    if (tether) {
+        glowLine(60, 30, 80, 5, 5*scalingFactor, centerOfBoard[0] + x, centerOfBoard[1] + y,
+            currentRealPosition(tether)[0] + centerOfBoard[0], currentRealPosition(tether)[1] + centerOfBoard[1])
+    }
 }
 
 function displayArenaTransition() {
@@ -2029,11 +2040,16 @@ function displayArenaTransition() {
 function displayIncomingArenaTransition() {
     push()
     translateToCenterOfBoard()
-    stroke(0, 0, 100, 20)
-    strokeWeight(10*scalingFactor)
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+    drawingContext.clip()
+    stroke(190, 20, 50, 10)
+    strokeWeight(20*scalingFactor)
     noFill()
-    circle(0, 0, ((millis() - stageStarted)%1000)*mainBodyWidth/700)
-    circle(0, 0, ((millis() - stageStarted+500)%1000)*mainBodyWidth/700)
+    circle(0, 0, ((millis() - stageStarted)%700)*(mainBodyWidth - 10*scalingFactor)/500)
+    circle(0, 0, ((millis() - stageStarted + 350)%700)*(mainBodyWidth - 10*scalingFactor)/500)
+    drawingContext.restore()
     pop()
 }
 
@@ -2063,7 +2079,7 @@ function displayM12SP2PlayerClones(stage, cardinalsFirst, tethers) {
             text(person, 0, -actualSize / 10)
         }
         if (stage === 0 && millis() - stageStarted < 2000) {
-            glowLine(200, 50, 100, 40, 10, -size/2, size/2-(millis()-stageStarted)*(size/2000), size/2, size/2-(millis()-stageStarted)*(size/2000))
+            glowLine(200, 50, 100, 20, 10, -size/2, size/2-(millis()-stageStarted)*(size/2000), size/2, size/2-(millis()-stageStarted)*(size/2000))
         }
         if (stage === 2) {
             glowLine(60, 20, 100, 30, 5, 0, 0, currentRealPosition(person)[0] - positions[i][0], currentPosition(person)[1] - positions[i][1])
@@ -2072,30 +2088,49 @@ function displayM12SP2PlayerClones(stage, cardinalsFirst, tethers) {
     }
 }
 
-function displayConeTelegraph(h, s, b, a, x, y, angle, size) {
+function displayConeTelegraph(h, s, b, a, x, y, angle, size, glowEdge = true) {
     push()
     noStroke()
     fill(h, s, b, a)
     stroke(h, s, b, a*2)
-    translate(x, y)
+    strokeWeight(3*scalingFactor)
+    if (glowEdge) noStroke()
     translateToCenterOfBoard()
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+    drawingContext.clip()
+    translate(x, y)
     rotate(angle)
-    arc(0, 0, 10000, 10000, -size/2, size/2, PIE)
+    arc(0, 0, 10000*scalingFactor, 10000*scalingFactor, -size/2, size/2, PIE)
+
     strokeWeight(10*scalingFactor)
     stroke(h, s, b, a*4)
     noFill()
     arc(0, 0, ((millis() - stageStarted) % 1000) * (mainBodyWidth/500), ((millis() - stageStarted) % 1000) * (mainBodyWidth/500), -size/2, size/2, OPEN)
 
+    if (glowEdge) {
+        noFill()
+        glowLine(h, s, b, a*3, 10*scalingFactor, 0, 0, cos(-size/2)*10000*scalingFactor, sin(-size/2)*10000*scalingFactor)
+        glowLine(h, s, b, a*3, 10*scalingFactor, 0, 0, cos(size/2)*10000*scalingFactor, sin(size/2)*10000*scalingFactor)
+    }
+    drawingContext.restore()
     pop()
 }
 
-function displayCircleTelegraph(h, s, b, a, x, y, d) {
+function displayCircleTelegraph(h, s, b, a, x, y, d, glowEdge = true) {
     push()
     noStroke()
     fill(h, s, b, a)
     stroke(h, s, b, a*2)
+    strokeWeight(3*scalingFactor)
+    if (glowEdge) noStroke()
     translate(x, y)
     translateToCenterOfBoard()
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+    drawingContext.clip()
     circle(0, 0, d)
 
     strokeWeight(d/20)
@@ -2103,10 +2138,82 @@ function displayCircleTelegraph(h, s, b, a, x, y, d) {
     noFill()
     circle(0, 0, ((millis() - stageStarted) % 1000) * (d/1000))
 
+    if (glowEdge) {
+        noFill()
+        glowCircle(h, s, b, a*3, 10*scalingFactor, 0, 0, d)
+    }
+    drawingContext.restore()
+
     pop()
 }
 
+function displayLindwurmsMeteorTelegraph(h, s, b, a) {
+    push()
+    noStroke()
+    fill(h, s, b, a)
+    stroke(h, s, b, a*2)
+    strokeWeight(3*scalingFactor)
+    translateToCenterOfBoard()
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+    drawingContext.clip()
+    beginShape()
+    for (let i = 0; i < TWO_PI; i += PI/100) {
+        vertex(cos(i)*mainBodyWidth/2, sin(i)*mainBodyWidth/2)
+    }
 
+    beginContour()
+    let center = 320/3*scalingFactor
+    let r = mainBodyWidth/2-320/3*scalingFactor
+    for (let i = 0; i < TWO_PI; i += PI/100) {
+        vertex(center + cos(-i)*r, sin(-i)*r)
+    }
+    endContour()
+
+    beginContour()
+    center = -center
+    for (let i = 0; i < TWO_PI; i += PI/100) {
+        vertex(center + cos(-i)*r, sin(-i)*r)
+    }
+    endContour()
+
+    endShape()
+    drawingContext.restore()
+
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.arc(0, 0, mainBodyWidth/2, 0, PI)
+    drawingContext.arc(-320/3*scalingFactor, 0, 265/3*scalingFactor, PI, PI+0.001, true)
+    drawingContext.arc(0, 0, mainBodyWidth/2, PI, 0)
+    drawingContext.arc(320/3*scalingFactor, 0, 265/3*scalingFactor, PI, PI+0.001, true)
+    drawingContext.clip()
+
+    stroke(h, s, b, a*4)
+    strokeWeight(6*scalingFactor)
+    line(-mainBodyWidth/2, -mainBodyWidth/2 + ((millis()-stageStarted)%4000) * mainBodyWidth/3600, mainBodyWidth/2, -mainBodyWidth/2 + ((millis()-stageStarted)%4000) * mainBodyWidth/3600)
+    line(-mainBodyWidth/2, -mainBodyWidth/2 + ((millis()-stageStarted + 2000)%4000) * mainBodyWidth/3600, mainBodyWidth/2, -mainBodyWidth/2 + ((millis()-stageStarted + 2000)%4000) * mainBodyWidth/3600)
+
+    drawingContext.restore()
+
+    pop()
+}
+
+function displayM12SP2ResolvedAoE(i, x, y, size, duration, logarithmicGrowth = false) {
+    if (millis() - stageStarted < duration) {
+        push()
+        translateToCenterOfBoard()
+        drawingContext.save()
+        drawingContext.beginPath()
+        drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+        drawingContext.clip()
+        let progress = (millis() - stageStarted)/duration
+        let actualSize = size*(logarithmicGrowth ? log(progress)/log(duration) : progress**(1/(100*(progress**(4*(progress**0.2))))))
+        image(i, x-actualSize/2, y-actualSize/2, actualSize, actualSize)
+        drawingContext.restore()
+        pop()
+    }
+}
 
 //———————————————————————————————find your role———————————————————————————————\\
 
@@ -3521,11 +3628,18 @@ function setupIdyllicDream() {
     setMovementMode(defaultMovementMode)
 
     mechanicStarted = millis()
+    stageStarted = millis()
 
     let M12SP2Floor = loadImage('data/M12S P2/Floor.webp')
     let M12SP2Floor2 = loadImage('data/M12S P2/Dimension 1.jpg')
     let M12SP2Floor3 = loadImage('data/M12S P2/Dimension 2.jpg')
+    let M12SP2Floor4 = loadImage('data/M12S P2/Dimension 2 Rent In Two.png')
     let hitbox = loadImage('data/hitbox.png')
+    let defamMarker = loadImage('data/M12S P2/Defamation marker.png')
+    let stackMarker = loadImage('data/M12S P2/Stack marker.png')
+    let wingedScourgeBowtie = loadImage('data/M12S P2/Winged Scourge Bowtie.png')
+    let wingedScourgeHourglass = loadImage('data/M12S P2/Winged Scourge Hourglass.png')
+    let powerGusher = loadImage('data/M12S P2/Power Gusher.png')
 
     stage = 0
     currentlySelectedMechanic = "Idyllic Dream"
@@ -3585,7 +3699,8 @@ function setupIdyllicDream() {
 
     textAtTop = "Hi! Idyllic Dream is a complex, brain-melting mech. If" +
         " you've studied for it, then here's a sim for it! This sim uses DN" +
-        " strats, linked at the bottom."
+        " strats, linked at the bottom. I recommend watching PoVs to see how" +
+        " this actually works out."
     textAtBottom = "You went to your default starting spot for this" +
         " simulation. \n[PASS] — You got to this page."
 
@@ -3715,6 +3830,7 @@ function setupIdyllicDream() {
             "arena": M12SP2Floor2,
             "arenaRotation": arenaRotation,
             "functions": [
+                {"name": "displayIncomingArenaTransition", "args": []},
                 {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
                 {"name": "displayM12SP2PlayerClones", "args": [2, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
                 {"name": "displayM12SP2PlayerClones", "args": [2, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
@@ -3727,7 +3843,7 @@ function setupIdyllicDream() {
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": {
-                "delayMillis": 1000,
+                "delayMillis": 3500,
                 "advanceStageTo": 1.75,
                 "positions": {},
                 "yourPosition": false,
@@ -3738,7 +3854,7 @@ function setupIdyllicDream() {
                 "pass": false
             }
         },
-        // stage 1.75: brief display of clones
+        // stage 1.75: brief display of player clones
         1.75: {
             "arena": M12SP2Floor2,
             "arenaRotation": arenaRotation,
@@ -3756,7 +3872,7 @@ function setupIdyllicDream() {
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": {
-                "delayMillis": 2000,
+                "delayMillis": 200,
                 "advanceStageTo": 1.8,
                 "positions": {},
                 "yourPosition": false,
@@ -3800,7 +3916,7 @@ function setupIdyllicDream() {
             "arenaRotation": arenaRotation,
             "functions": [
                 {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
-                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "push", "args": []},
@@ -3829,14 +3945,14 @@ function setupIdyllicDream() {
             "arenaRotation": arenaRotation,
             "functions": [
                 {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
-                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? -PI/2 : 0, PI/2]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? PI/2 : PI, PI/2]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? -PI/2 : 0, PI/2]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? PI/2 : PI, PI/2]},
-                {"name": "displayCircleTelegraph", "args": [20, 80, 100, 5, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 200*scalingFactor]},
+                {"name": "displayCircleTelegraph", "args": [20, 80, 100, 5, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 200*scalingFactor]},
                 {"name": "push", "args": []},
                 {"name": "translateToCenterOfBoard", "args": []},
                 {"name": "displayCharacterPositions", "args": []},
@@ -3846,7 +3962,7 @@ function setupIdyllicDream() {
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": {
-                "delayMillis": 1000,
+                "delayMillis": 0,
                 "advanceStageTo": 1.95,
                 "positions": {},
                 "yourPosition": false,
@@ -3864,14 +3980,14 @@ function setupIdyllicDream() {
             "functions": [
                 {"name": "displayIncomingArenaTransition", "args": []},
                 {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
-                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? -PI/2 : 0, PI/2]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, -100*scalingFactor, northSidesSafe ? PI/2 : PI, PI/2]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? -PI/2 : 0, PI/2]},
                 {"name": "displayConeTelegraph", "args": [20, 80, 100, 5, 0, 100*scalingFactor, southSidesSafe ? PI/2 : PI, PI/2]},
-                {"name": "displayCircleTelegraph", "args": [20, 80, 100, 5, 0, circleAoECloneNorth ? -50*scalingFactor : 50*scalingFactor, 200*scalingFactor]},
+                {"name": "displayCircleTelegraph", "args": [20, 80, 100, 5, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 200*scalingFactor]},
                 {"name": "push", "args": []},
                 {"name": "translateToCenterOfBoard", "args": []},
                 {"name": "displayCharacterPositions", "args": []},
@@ -3881,7 +3997,7 @@ function setupIdyllicDream() {
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": {
-                "delayMillis": 2000,
+                "delayMillis": 3700,
                 "advanceStageTo": 2,
                 "positions": {},
                 "yourPosition": false,
@@ -3925,7 +4041,7 @@ function setupIdyllicDream() {
                     "textAtBottom": ((role === NTether || role === STether) ? "[PASS] — " : "[FAIL] — ") +
                     `You are the ${yourTether} tether player.`,
                     "backgroundChange": false,
-                    "fail": false,
+                    "fail": !(role === NTether || role === STether),
                     "pass": false
                 }
             }, {
@@ -3943,7 +4059,7 @@ function setupIdyllicDream() {
                     "textAtBottom": ((role === NETether || role === SWTether) ? "[PASS] — " : "[FAIL] — ") +
                         `You are the ${yourTether} tether player.`,
                     "backgroundChange": false,
-                    "fail": false,
+                    "fail": !(role === NETether || role === SWTether),
                     "pass": false
                 }
             }, {
@@ -3961,7 +4077,7 @@ function setupIdyllicDream() {
                     "textAtBottom": ((role === ETether || role === WTether) ? "[PASS] — " : "[FAIL] — ") +
                         `You are the ${yourTether} tether player.`,
                     "backgroundChange": false,
-                    "fail": false,
+                    "fail": !(role === ETether || role === WTether),
                     "pass": false
                 }
             }, {
@@ -3979,7 +4095,7 @@ function setupIdyllicDream() {
                     "textAtBottom": ((role === SETether || role === NWTether) ? "[PASS] — " : "[FAIL] — ") +
                         `You are the ${yourTether} tether player.`,
                     "backgroundChange": false,
-                    "fail": false,
+                    "fail": !(role === SETether || role === NWTether),
                     "pass": false
                 }
             }],
@@ -4131,7 +4247,14 @@ function setupIdyllicDream() {
                 "positions": {},
                 "yourPosition": false,
                 "changeMovementType": false,
-                "textAtTop": "Select which tether you are going to take.",
+                "textAtTop": "Select which tether you are going to take." +
+                    " \n[IMPORTANT] — Boss clones spawn closer than player" +
+                    " clones, not at the wall. They spawn at the wall for" +
+                    " visual clarity. " +
+                    " \n[IMPORTANT] — Tethers are grabbed the same way as" +
+                    " they are in Replication 2, but that would lead to" +
+                    " problems with this sim where tethers might not be" +
+                    " grabbed by the bots.",
                 "textAtBottom": false,
                 "backgroundChange": false,
                 "pass": false
@@ -4143,14 +4266,184 @@ function setupIdyllicDream() {
             "arenaRotation": arenaRotation,
             "functions": [
                 {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
-                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, 160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, -160*scalingFactor, 0, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0]]},
-                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 0, -160*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 0, 160*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, 113*scalingFactor, -113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, -113*scalingFactor, 113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 160*scalingFactor, 0, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, -160*scalingFactor, 0, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, 113*scalingFactor, 113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, -113*scalingFactor, -113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                (role === NTether || role === STether ? {"name": "displayGreenDot", "args": [0, -130*scalingFactor]} :
+                (role === NETether || role === SWTether ? {"name": "displayGreenDot", "args": [130*scalingFactor, 0]} :
+                (role === ETether || role === WTether ? {"name": "displayGreenDot", "args": [0, 130*scalingFactor]} :
+                (role === SETether || role === NWTether ? {"name": "displayGreenDot", "args": [-130*scalingFactor, 0]} :
+                    {"name": "", "args": []})))),
+                (role === NTether || role === STether ? {"name": "displayGreenDot", "args": [92*scalingFactor, -92*scalingFactor]} :
+                (role === NETether || role === SWTether ? {"name": "displayGreenDot", "args": [92*scalingFactor, 92*scalingFactor]} :
+                (role === ETether || role === WTether ? {"name": "displayGreenDot", "args": [-92*scalingFactor, 92*scalingFactor]} :
+                (role === SETether || role === NWTether ? {"name": "displayGreenDot", "args": [-92*scalingFactor, -92*scalingFactor]} :
+                    {"name": "", "args": []}))))
+            ],
+            "greendots": [{
+                "x":
+                    (role === NTether ? (stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === NETether ? (stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === ETether ? (stacksFirst ? 0 : -92*scalingFactor) :
+                    (role === SETether ? (stacksFirst ? -130*scalingFactor : -92*scalingFactor) :
+                    (role === STether ? (stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === SWTether ? (stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === WTether ? (stacksFirst ? 0 : -92*scalingFactor) :
+                    (role === NWTether ? (stacksFirst ? -130*scalingFactor : -92*scalingFactor) : false))))))))
+                ,
+                "y":
+                    (role === NTether ? (stacksFirst ? -130*scalingFactor : -92*scalingFactor) :
+                    (role === NETether ? (stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === ETether ? (stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === SETether ? (stacksFirst ? 0 : -92*scalingFactor) :
+                    (role === STether ? (stacksFirst ? -130*scalingFactor : -92*scalingFactor) :
+                    (role === SWTether ? (stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === WTether ? (stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === NWTether ? (stacksFirst ? 0 : -92*scalingFactor) : false))))))))
+                ,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": (role === NTether || role === NETether || role === ETether || role === SETether) ? 3.5 : 103,
+                    "positions": {},
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": (role === NTether || role === NETether || role === ETether || role === SETether) ?
+                        "Wait for the tether to lock in." :
+                        `You should be grabbing the defamation clone.`,
+                    "textAtBottom": ((role === NTether || role === NETether || role === ETether || role === SETether) ? "[PASS] — " : "[FAIL] — ") +
+                        `You are the ${yourTether} tether player.`,
+                    "backgroundChange": false,
+                    "fail": !(role === NTether || role === NETether || role === ETether || role === SETether),
+                    "pass": false
+                }
+            }, {
+                "x":
+                    (role === NTether ? (!stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === NETether ? (!stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === ETether ? (!stacksFirst ? 0 : -92*scalingFactor) :
+                    (role === SETether ? (!stacksFirst ? -130*scalingFactor : -92*scalingFactor) :
+                    (role === STether ? (!stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === SWTether ? (!stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === WTether ? (!stacksFirst ? 0 : -92*scalingFactor) :
+                    (role === NWTether ? (!stacksFirst ? -130*scalingFactor : -92*scalingFactor) : false))))))))
+                ,
+                "y":
+                    (role === NTether ? (!stacksFirst ? -130*scalingFactor : -92*scalingFactor) :
+                    (role === NETether ? (!stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === ETether ? (!stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === SETether ? (!stacksFirst ? 0 : -92*scalingFactor) :
+                    (role === STether ? (!stacksFirst ? -130*scalingFactor : -92*scalingFactor) :
+                    (role === SWTether ? (!stacksFirst ? 0 : 92*scalingFactor) :
+                    (role === WTether ? (!stacksFirst ? 130*scalingFactor : 92*scalingFactor) :
+                    (role === NWTether ? (!stacksFirst ? 0 : -92*scalingFactor) : false))))))))
+                ,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": (role === NTether || role === NETether || role === ETether || role === SETether) ? 103 : 3.5,
+                    "positions": {},
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": (role === NTether || role === NETether || role === ETether || role === SETether) ?
+                        `You should be grabbing the stack clone.` :
+                        "Wait for the tether to lock in.",
+                    "textAtBottom": ((role === NTether || role === NETether || role === ETether || role === SETether) ? "[FAIL] — " : "[PASS] — ") +
+                        `You are the ${yourTether} tether player.`,
+                    "backgroundChange": false,
+                    "fail": (role === NTether || role === NETether || role === ETether || role === SETether),
+                    "pass": false
+                }
+            }],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 103: Wrong clone.
+        103: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 0, -160*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 0, 160*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, 113*scalingFactor, -113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, -113*scalingFactor, 113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 160*scalingFactor, 0, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, -160*scalingFactor, 0, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, 113*scalingFactor, 113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, -113*scalingFactor, -113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 3.5: Arrive
+        3.5: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 0, -160*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 0, 160*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, 113*scalingFactor, -113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, -113*scalingFactor, 113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, 160*scalingFactor, 0, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? stackMarker : defamMarker, -160*scalingFactor, 0, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, 113*scalingFactor, 113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayBoss", "args": [stacksFirst ? defamMarker : stackMarker, -113*scalingFactor, -113*scalingFactor, 80*scalingFactor, [0, -10000000000000000000000000000000000*scalingFactor]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 3.75,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 3.75: Twisted Vision + tethers
+        3.75: {
+            "arena": M12SP2Floor2,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayIncomingArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -160*scalingFactor, 50*scalingFactor, [0, 0], stacksFirst ? NTether : STether]},
+                {"name": "displayBoss", "args": [hitbox, 0, 160*scalingFactor, 50*scalingFactor, [0, 0], stacksFirst ? ETether : WTether]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0], stacksFirst ? STether : NTether]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0], stacksFirst ? WTether : ETether]},
+                {"name": "displayBoss", "args": [hitbox, 160*scalingFactor, 0, 50*scalingFactor, [0, 0], stacksFirst ? NETether : SWTether]},
+                {"name": "displayBoss", "args": [hitbox, -160*scalingFactor, 0, 50*scalingFactor, [0, 0], stacksFirst ? SETether : NWTether]},
+                {"name": "displayBoss", "args": [hitbox, 113*scalingFactor, 113*scalingFactor, 50*scalingFactor, [0, 0], stacksFirst ? SWTether : NETether]},
+                {"name": "displayBoss", "args": [hitbox, -113*scalingFactor, -113*scalingFactor, 50*scalingFactor, [0, 0], stacksFirst ? NWTether : SETether]},
                 {"name": "displayM12SP2PlayerClones", "args": [3, cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
                 {"name": "displayM12SP2PlayerClones", "args": [3, !cardinalsFirst, [NTether, NETether, ETether, SETether, STether, SWTether, WTether, NWTether]]},
                 {"name": "push", "args": []},
@@ -4162,17 +4455,242 @@ function setupIdyllicDream() {
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": {
-                "delayMillis": 1000,
-                "advanceStageTo": 3,
+                "delayMillis": 3700,
+                "advanceStageTo": 4,
                 "positions": {},
                 "yourPosition": false,
                 "changeMovementType": false,
-                "textAtTop": "Select which tether you are going to take.",
+                "textAtTop": "Quick! Where's your dodging spot?",
                 "textAtBottom": false,
                 "backgroundChange": false,
                 "pass": false
             }
         },
+        // 4: Dimension switch → spot
+        4: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [-100*scalingFactor, -100*scalingFactor]},
+                {"name": "displayGreenDot", "args": [100*scalingFactor, -100*scalingFactor]},
+                {"name": "displayGreenDot", "args": [-100*scalingFactor, 100*scalingFactor]},
+                {"name": "displayGreenDot", "args": [100*scalingFactor, 100*scalingFactor]},
+            ],
+            "greendots": [{
+                "x": -100*scalingFactor,
+                "y": -100*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": northSidesSafe ? 4.5 : 104,
+                    "positions": {},
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": northSidesSafe ?
+                        "Wait for the AoEs to go off." :
+                        `You went to the wrong side and now you are dead.`,
+                    "textAtBottom": (northSidesSafe ? "[PASS] — " : "[FAIL] — ") +
+                        `You went to the north side.`,
+                    "backgroundChange": false,
+                    "fail": !northSidesSafe,
+                    "pass": false
+                }
+            }, {
+                "x": 100*scalingFactor,
+                "y": -100*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": northSidesSafe ? 4.5 : 104,
+                    "positions": {},
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": northSidesSafe ?
+                        "Wait for the AoEs to go off." :
+                        `You went to the wrong side and now you are dead.`,
+                    "textAtBottom": (northSidesSafe ? "[PASS] — " : "[FAIL] — ") +
+                        `You went to the north side.`,
+                    "backgroundChange": false,
+                    "fail": !northSidesSafe,
+                    "pass": false
+                }
+            }, {
+                "x": -100*scalingFactor,
+                "y": 100*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": southSidesSafe ? 4.5 : 104,
+                    "positions": {},
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": southSidesSafe ?
+                        "Wait for the AoEs to go off." :
+                        `You went to the wrong side and now you are dead.`,
+                    "textAtBottom": (southSidesSafe ? "[PASS] — " : "[FAIL] — ") +
+                        `You went to the south side.`,
+                    "backgroundChange": false,
+                    "fail": !southSidesSafe,
+                    "pass": false
+                }
+            }, {
+                "x": 100*scalingFactor,
+                "y": 100*scalingFactor,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": southSidesSafe ? 4.5 : 104,
+                    "positions": {},
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": southSidesSafe ?
+                        "Wait for the AoEs to go off." :
+                        `You went to the wrong side and now you are dead.`,
+                    "textAtBottom": (southSidesSafe ? "[PASS] — " : "[FAIL] — ") +
+                        `You went to the south side.`,
+                    "backgroundChange": false,
+                    "fail": !southSidesSafe,
+                    "pass": false
+                }
+            }],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 104: Wrong side
+        104: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 104.5,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 104: Wrong side + AoEs
+        104.5: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayM12SP2ResolvedAoE", "args": [wingedScourgeBowtie, 0, northSidesSafe ? 100*scalingFactor : -100*scalingFactor, mainBodyWidth*2, 2000]},
+                {"name": "displayM12SP2ResolvedAoE", "args": [wingedScourgeHourglass, 0, northSidesSafe ? -100*scalingFactor : 100*scalingFactor, mainBodyWidth*2, 2000]},
+                {"name": "displayM12SP2ResolvedAoE", "args": [powerGusher, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 200*scalingFactor, 2000, false]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 4.5: Get people to spot
+        4.5: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 4.75,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 4.75: AoEs
+        4.75: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, -100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayBoss", "args": [hitbox, 0, 100*scalingFactor, 50*scalingFactor, [0, -1000*scalingFactor]]},
+                {"name": "displayM12SP2ResolvedAoE", "args": [wingedScourgeBowtie, 0, northSidesSafe ? 100*scalingFactor : -100*scalingFactor, mainBodyWidth*2, 2000]},
+                {"name": "displayM12SP2ResolvedAoE", "args": [wingedScourgeHourglass, 0, northSidesSafe ? -100*scalingFactor : 100*scalingFactor, mainBodyWidth*2, 2000]},
+                {"name": "displayM12SP2ResolvedAoE", "args": [powerGusher, 0, circleAoECloneNorth ? -35*scalingFactor : 35*scalingFactor, 200*scalingFactor, 2000, false]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 2500,
+                "advanceStageTo": 5,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Get to your light parties quickly!",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 5: Lindwurm's Meteor telegraph
+        5: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayLindwurmsMeteorTelegraph", "args": [0, 80, 100, 5]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []},
+                {"name": "displayGreenDot", "args": [-107*scalingFactor, 0]},
+                {"name": "displayGreenDot", "args": [107*scalingFactor, 0]}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        }
     }
 
     script[1.5].delayedAdvance.positions[NTether] = [0, -50*scalingFactor]
@@ -4219,6 +4737,68 @@ function setupIdyllicDream() {
     script[2].greendots[3].onclick.positions[SWTether] = [(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
     script[2].greendots[3].onclick.positions[WTether] = [-(40*scalingFactor + random()*20*scalingFactor), (40*scalingFactor + random()*20*scalingFactor)]
     script[2].greendots[3].onclick.positions[NWTether] = [-(40*scalingFactor + random()*20*scalingFactor), -(40*scalingFactor + random()*20*scalingFactor)]
+
+    script[3].greendots[0].onclick.positions[stacksFirst ? NTether : STether] = [0, -130*scalingFactor]
+    script[3].greendots[0].onclick.positions[stacksFirst ? NETether : SWTether] = [130*scalingFactor, 0]
+    script[3].greendots[0].onclick.positions[stacksFirst ? ETether : WTether] = [0, 130*scalingFactor]
+    script[3].greendots[0].onclick.positions[stacksFirst ? SETether : NWTether] = [-130*scalingFactor, 0]
+    script[3].greendots[0].onclick.positions[!stacksFirst ? NTether : STether] = [92*scalingFactor, -92*scalingFactor]
+    script[3].greendots[0].onclick.positions[!stacksFirst ? NETether : SWTether] = [92*scalingFactor, 92*scalingFactor]
+    script[3].greendots[0].onclick.positions[!stacksFirst ? ETether : WTether] = [-92*scalingFactor, 92*scalingFactor]
+    script[3].greendots[0].onclick.positions[!stacksFirst ? SETether : NWTether] = [-92*scalingFactor, -92*scalingFactor]
+
+    script[3].greendots[1].onclick.positions[stacksFirst ? NTether : STether] = [0, -130*scalingFactor]
+    script[3].greendots[1].onclick.positions[stacksFirst ? NETether : SWTether] = [130*scalingFactor, 0]
+    script[3].greendots[1].onclick.positions[stacksFirst ? ETether : WTether] = [0, 130*scalingFactor]
+    script[3].greendots[1].onclick.positions[stacksFirst ? SETether : NWTether] = [-130*scalingFactor, 0]
+    script[3].greendots[1].onclick.positions[!stacksFirst ? NTether : STether] = [92*scalingFactor, -92*scalingFactor]
+    script[3].greendots[1].onclick.positions[!stacksFirst ? NETether : SWTether] = [92*scalingFactor, 92*scalingFactor]
+    script[3].greendots[1].onclick.positions[!stacksFirst ? ETether : WTether] = [-92*scalingFactor, 92*scalingFactor]
+    script[3].greendots[1].onclick.positions[!stacksFirst ? SETether : NWTether] = [-92*scalingFactor, -92*scalingFactor]
+
+    script[3].greendots[0].onclick.yourPosition = [script[3].greendots[0].x, script[3].greendots[0].y]
+    script[3].greendots[1].onclick.yourPosition = [script[3].greendots[1].x, script[3].greendots[1].y]
+
+    script[4].greendots[0].onclick.yourPosition = [script[4].greendots[0].x, script[4].greendots[0].y]
+    script[4].greendots[1].onclick.yourPosition = [script[4].greendots[1].x, script[4].greendots[1].y]
+    script[4].greendots[2].onclick.yourPosition = [script[4].greendots[2].x, script[4].greendots[2].y]
+    script[4].greendots[3].onclick.yourPosition = [script[4].greendots[3].x, script[4].greendots[3].y]
+
+    script[4].greendots[0].onclick.positions[NTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[NETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[ETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[SETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[STether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[SWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[WTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[0].onclick.positions[NWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+
+    script[4].greendots[1].onclick.positions[NTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[NETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[ETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[SETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[STether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[SWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[WTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[1].onclick.positions[NWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+
+    script[4].greendots[2].onclick.positions[NTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[NETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[ETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[SETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[STether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[SWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[WTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[2].onclick.positions[NWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+
+    script[4].greendots[3].onclick.positions[NTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[NETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[ETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[SETether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[STether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[SWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[WTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
+    script[4].greendots[3].onclick.positions[NWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
 
     instructions.html(`<pre>
 numpad 1 → freeze sketch
@@ -4278,63 +4858,179 @@ function glowRect(h, s, b, a, weight, param1, param2, param3, param4, param5 = 0
 }
 
 function glowCircle(h, s, b, a, weight, param1, param2, param3) {
+    // strokeWeight(weight)
+    // stroke(h, s, b, a)
+    // circle(param1, param2, param3)
+    //
+    // strokeWeight(weight*9/10)
+    // stroke(h, s*1.5/3, b*1.5/3 + 100/2, a/2)
+    // circle(param1, param2, param3)
+    //
+    // strokeWeight(weight*4/5)
+    // stroke(h, s*1.5/3, b*1.5/3 + 100/2, a)
+    // circle(param1, param2, param3)
+    //
+    // strokeWeight(weight*7/10)
+    // stroke(h, s*1/4, b*1/4 + 300/4, a/2)
+    // circle(param1, param2, param3)
+    //
+    // strokeWeight(weight*3/5)
+    // stroke(h, s*1/4, b*1/4 + 300/4, a)
+    // circle(param1, param2, param3)
+    //
+    // strokeWeight(weight*1/2)
+    // stroke(h, 0, 100, a/2)
+    // circle(param1, param2, param3)
+    //
+    // strokeWeight(weight*2/5)
+    // stroke(h, 0, 100, a)
+    // circle(param1, param2, param3)
+
+    push()
+    blendMode(ADD)
     strokeWeight(weight)
-    stroke(h, s, b, a)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
 
-    strokeWeight(weight*9/10)
-    stroke(h, s*1.5/3, b*1.5/3 + 100/2, a/2)
+    strokeWeight(weight/1.1)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
 
-    strokeWeight(weight*4/5)
-    stroke(h, s*1.5/3, b*1.5/3 + 100/2, a)
+    strokeWeight(weight/1.2)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
 
-    strokeWeight(weight*7/10)
-    stroke(h, s*1/4, b*1/4 + 300/4, a/2)
+    strokeWeight(weight/1.3)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
 
-    strokeWeight(weight*3/5)
-    stroke(h, s*1/4, b*1/4 + 300/4, a)
+    strokeWeight(weight/1.4)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
 
-    strokeWeight(weight*1/2)
-    stroke(h, 0, 100, a/2)
+    strokeWeight(weight/1.5)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
 
-    strokeWeight(weight*2/5)
-    stroke(h, 0, 100, a)
+    strokeWeight(weight/1.6)
+    stroke(h, s, b, a/15)
     circle(param1, param2, param3)
+
+    strokeWeight(weight/1.7)
+    stroke(h, s, b, a/15)
+    circle(param1, param2, param3)
+
+    strokeWeight(weight/1.8)
+    stroke(h, s, b, a/15)
+    circle(param1, param2, param3)
+
+    strokeWeight(weight/1.9)
+    stroke(h, s, b, a/15)
+    circle(param1, param2, param3)
+
+    strokeWeight(weight/2)
+    stroke(h, s, b, a/15)
+    circle(param1, param2, param3)
+
+    strokeWeight(weight/2.9)
+    stroke(h, s, b, a/2)
+    circle(param1, param2, param3)
+
+    strokeWeight(weight/3)
+    stroke(h, s, b, a/2)
+    circle(param1, param2, param3)
+
+
+    blendMode(NORMAL)
+    pop()
 }
 
 function glowLine(h, s, b, a, weight, param1, param2, param3, param4) {
+    // strokeWeight(weight)
+    // stroke(h, s, b, a)
+    // line(param1, param2, param3, param4)
+    //
+    // strokeWeight(weight*9/10)
+    // stroke(h, s*1.5/3, b*1.5/3 + 100/2, a/2)
+    // line(param1, param2, param3, param4)
+    //
+    // strokeWeight(weight*4/5)
+    // stroke(h, s*1.5/3, b*1.5/3 + 100/2, a)
+    // line(param1, param2, param3, param4)
+    //
+    // strokeWeight(weight*7/10)
+    // stroke(h, s*1/4, b*1/4 + 300/4, a/2)
+    // line(param1, param2, param3, param4)
+    //
+    // strokeWeight(weight*3/5)
+    // stroke(h, s*1/4, b*1/4 + 300/4, a)
+    // line(param1, param2, param3, param4)
+    //
+    // strokeWeight(weight*1/2)
+    // stroke(h, 0, 100, a/2)
+    // line(param1, param2, param3, param4)
+    //
+    // strokeWeight(weight*2/5)
+    // stroke(h, 0, 100, a)
+    // line(param1, param2, param3, param4)
+
+    push()
+    blendMode(ADD)
     strokeWeight(weight)
-    stroke(h, s, b, a)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
 
-    strokeWeight(weight*9/10)
-    stroke(h, s*1.5/3, b*1.5/3 + 100/2, a/2)
+    strokeWeight(weight/1.1)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
 
-    strokeWeight(weight*4/5)
-    stroke(h, s*1.5/3, b*1.5/3 + 100/2, a)
+    strokeWeight(weight/1.2)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
 
-    strokeWeight(weight*7/10)
-    stroke(h, s*1/4, b*1/4 + 300/4, a/2)
+    strokeWeight(weight/1.3)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
 
-    strokeWeight(weight*3/5)
-    stroke(h, s*1/4, b*1/4 + 300/4, a)
+    strokeWeight(weight/1.4)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
 
-    strokeWeight(weight*1/2)
-    stroke(h, 0, 100, a/2)
+    strokeWeight(weight/1.5)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
 
-    strokeWeight(weight*2/5)
-    stroke(h, 0, 100, a)
+    strokeWeight(weight/1.6)
+    stroke(h, s, b, a/15)
     line(param1, param2, param3, param4)
+
+    strokeWeight(weight/1.7)
+    stroke(h, s, b, a/15)
+    line(param1, param2, param3, param4)
+
+    strokeWeight(weight/1.8)
+    stroke(h, s, b, a/15)
+    line(param1, param2, param3, param4)
+
+    strokeWeight(weight/1.9)
+    stroke(h, s, b, a/15)
+    line(param1, param2, param3, param4)
+
+    strokeWeight(weight/2)
+    stroke(h, s, b, a/15)
+    line(param1, param2, param3, param4)
+
+    strokeWeight(weight/2.9)
+    stroke(h, s, b, a/2)
+    line(param1, param2, param3, param4)
+
+    strokeWeight(weight/3)
+    stroke(h, s, b, a/2)
+    line(param1, param2, param3, param4)
+
+
+    blendMode(NORMAL)
+    pop()
 }
 
 function glowText(h, s, b, a, weight, param1, param2, param3) {
