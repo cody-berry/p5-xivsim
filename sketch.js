@@ -941,9 +941,9 @@ function displayMainBodyContent() {
 
             if (delayedAdvance.backgroundChange) {
                 let css = select("html")
-                css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
+                css.style("background-image", "url(\"" + delayedAdvance.backgroundChange + "\")")
                 css = select("body")
-                css.style("background-image", "url(\"" + onArrive.backgroundChange + "\")")
+                css.style("background-image", "url(\"" + delayedAdvance.backgroundChange + "\")")
             }
 
             if (delayedAdvance.pass) updateWins()
@@ -2082,7 +2082,7 @@ function displayM12SP2PlayerClones(stage, cardinalsFirst, tethers) {
             glowLine(200, 50, 100, 20, 10, -size/2, size/2-(millis()-stageStarted)*(size/2000), size/2, size/2-(millis()-stageStarted)*(size/2000))
         }
         if (stage === 2) {
-            glowLine(60, 20, 100, 30, 5, 0, 0, currentRealPosition(person)[0] - positions[i][0], currentPosition(person)[1] - positions[i][1])
+            glowLine(60, 20, 100, 30, 5, 0, 0, currentRealPosition(person)[0] - positions[i][0], currentRealPosition(person)[1] - positions[i][1])
         }
         pop()
     }
@@ -2199,7 +2199,7 @@ function displayLindwurmsMeteorTelegraph(h, s, b, a) {
     pop()
 }
 
-function displayM12SP2ResolvedAoE(i, x, y, size, duration, logarithmicGrowth = false) {
+function displayGrowthResolvedAoE(i, x, y, size, duration, logarithmicGrowth = false, targeted = false) {
     if (millis() - stageStarted < duration) {
         push()
         translateToCenterOfBoard()
@@ -2213,6 +2213,139 @@ function displayM12SP2ResolvedAoE(i, x, y, size, duration, logarithmicGrowth = f
         drawingContext.restore()
         pop()
     }
+}
+
+function displayTransparencyResolvedAoE(i, x, y, size, duration, targeted = false) {
+    if (millis() - stageStarted < duration) {
+        push()
+        translateToCenterOfBoard()
+        drawingContext.save()
+        drawingContext.beginPath()
+        drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+        drawingContext.clip()
+        let progress = (millis() - stageStarted)/duration
+        let opacity = 100*(progress**2)
+        let actualSize = size*(map(progress, 0, 0.5, 0, 1, true)**(1/(100*(progress**(5*progress)))))
+        tint(0, 0, 100, opacity)
+        if (targeted) image(i, currentRealPosition(x)[0] - actualSize/2, currentRealPosition(x)[1] - actualSize/2, actualSize, actualSize)
+        else image(i, x-actualSize/2, y-actualSize/2, actualSize, actualSize)
+        drawingContext.restore()
+        pop()
+    }
+}
+
+function displayLindwurmsMeteor(i) {
+    let progress = map(millis() - stageStarted, 0, 1000, 0.001, 1, true)
+
+    push()
+    translateToCenterOfBoard()
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.rect(-mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+    drawingContext.clip()
+    scale(progress, progress)
+    drawingContext.save()
+    drawingContext.beginPath()
+    drawingContext.arc(0, 0, mainBodyWidth/2, 0, PI)
+    drawingContext.arc(-320/3*scalingFactor, 0, 265/3*scalingFactor, PI, PI+0.001, true)
+    drawingContext.arc(0, 0, mainBodyWidth/2, PI, 0)
+    drawingContext.arc(320/3*scalingFactor, 0, 265/3*scalingFactor, PI, PI+0.001, true)
+    drawingContext.clip()
+    rotate(progress**(1/(100*(progress**(progress + 3)))) *TWO_PI*1.25 + TWO_PI*0.25)
+    scale(1/progress, 1/progress)
+    image(i, -mainBodyWidth/2, -mainBodyWidth/2, mainBodyWidth, mainBodyWidth)
+    if (progress >= 1) background(0, 0, 100, map(millis() - stageStarted, 1000, 2000, 0, 100, true))
+    drawingContext.restore()
+    drawingContext.restore()
+    if (progress >= 1) {
+        let glow = map(millis() - stageStarted, 1000, 3000, 0, 1)**(1/2) * 200*scalingFactor
+        glowCircle(0, 0, 55.88235295, 2.9412, glow, 320/3*scalingFactor, 0, 265/1.5*scalingFactor)
+        glowCircle(0, 0, 55.88235295, 2.9412, glow, -320/3*scalingFactor, 0, 265/1.5*scalingFactor)
+        glowCircle(0, 0, 55.88235295, 2.9412, glow, 0, 0, mainBodyWidth)
+    }
+    pop()
+    blendMode(ADD)
+    if (millis() - stageStarted > 1000) background(0, 0, 100, 0.3)
+    blendMode(BLEND)
+}
+
+function displayM12SP2Towers(WTowers, ETowers, towerBase, imgs, width, height, progress) {
+    let towerPositions = map(millis() - stageStarted, 0, 4000, -125*scalingFactor, progress === 1 ? -height/2 : -125*scalingFactor)
+
+    let h = 50
+    let s = 2.69607843137255609457
+    let b = 80
+    let a = 10
+    let w = 2*scalingFactor
+    let g = 1/8
+
+    push()
+    translateToCenterOfBoard()
+    let towerSize = 100*scalingFactor
+    let towerXY = 265/8*scalingFactor
+    let platformCenterX = -320/3*scalingFactor
+
+    image(towerBase, platformCenterX - towerXY-towerSize/2, towerXY-towerSize/2, towerSize, towerSize)
+    image(towerBase, platformCenterX - towerXY-towerSize/2, -towerXY-towerSize/2, towerSize, towerSize)
+    image(towerBase, platformCenterX + towerXY-towerSize/2, towerXY-towerSize/2, towerSize, towerSize)
+    image(towerBase, platformCenterX + towerXY-towerSize/2, -towerXY-towerSize/2, towerSize, towerSize)
+
+    platformCenterX = -platformCenterX
+    image(towerBase, platformCenterX - towerXY-towerSize/2, towerXY-towerSize/2, towerSize, towerSize)
+    image(towerBase, platformCenterX - towerXY-towerSize/2, -towerXY-towerSize/2, towerSize, towerSize)
+    image(towerBase, platformCenterX + towerXY-towerSize/2, towerXY-towerSize/2, towerSize, towerSize)
+    image(towerBase, platformCenterX + towerXY-towerSize/2, -towerXY-towerSize/2, towerSize, towerSize)
+
+    platformCenterX = -platformCenterX
+    displayCharacterPositions()
+
+    let x = platformCenterX - towerXY
+    let y = -towerXY
+    let i = imgs[WTowers[0][0]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    x += towerXY*2
+    i = imgs[WTowers[0][1]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    x -= towerXY*2
+    y += towerXY*2
+    i = imgs[WTowers[1][0]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    x += towerXY*2
+    i = imgs[WTowers[1][1]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    platformCenterX = -platformCenterX
+
+    x = platformCenterX - towerXY
+    y = -towerXY
+    i = imgs[ETowers[0][0]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    x += towerXY*2
+    i = imgs[ETowers[0][1]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    x -= towerXY*2
+    y += towerXY*2
+    i = imgs[ETowers[1][0]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    x += towerXY*2
+    i = imgs[ETowers[1][1]]
+    glowLine(h, s, b, a, w, x, y, x, y+towerPositions, g)
+    image(i, x-width/2, y+towerPositions-height/2, width, height)
+
+    pop()
 }
 
 //———————————————————————————————find your role———————————————————————————————\\
@@ -3640,8 +3773,15 @@ function setupIdyllicDream() {
     let wingedScourgeBowtie = loadImage('data/M12S P2/Winged Scourge Bowtie.png')
     let wingedScourgeHourglass = loadImage('data/M12S P2/Winged Scourge Hourglass.png')
     let powerGusher = loadImage('data/M12S P2/Power Gusher.png')
+    let lava = loadImage('data/M12S P2/Lava.png')
+    let doomRock = loadImage('data/M12S P2/Tricoloured Doom Rock.png')
+    let windRock = loadImage('data/M12S P2/Tricoloured Wind Rock.png')
+    let earthRock = loadImage('data/M12S P2/Earth Rock.png')
+    let fireRock = loadImage('data/M12S P2/Flame Rock.png')
+    let tower = loadImage('data/M12S P2/Tower.png')
+    let arcadianArcanum = loadImage('data/M12S P2/Arcadian Arcanum.png')
 
-    stage = 0
+    stage = 6
     currentlySelectedMechanic = "Idyllic Dream"
     currentlySelectedBackground = "M12S P2"
 
@@ -3689,6 +3829,79 @@ function setupIdyllicDream() {
     let southSidesSafe = !northSidesSafe
 
     let stacksFirst = random([true, false])
+
+    let WTowers = random([[
+        [random(["doom", "wind"]), random(["earth", "fire"])],
+        []
+    ], [
+        [random(["earth", "fire"]), random(["doom", "wind"])],
+        []
+    ]])
+
+    WTowers[1].push(
+        {
+            doom: "wind",
+            wind: "doom",
+            earth: "fire",
+            fire: "earth"
+        }[WTowers[0][1]]
+    )
+    WTowers[1].push(
+        {
+            doom: "wind",
+            wind: "doom",
+            earth: "fire",
+            fire: "earth"
+        }[WTowers[0][0]]
+    )
+    print(WTowers[0])
+    print(WTowers[1])
+    print("---")
+
+    let ETowers = random([[
+        [random(["doom", "wind"]), random(["earth", "fire"])],
+        []
+    ], [
+        [random(["earth", "fire"]), random(["doom", "wind"])],
+        []
+    ]])
+    ETowers[1].push(
+        {
+            doom: "wind",
+            wind: "doom",
+            earth: "fire",
+            fire: "earth"
+        }[ETowers[0][1]]
+    )
+    ETowers[1].push(
+        {
+            doom: "wind",
+            wind: "doom",
+            earth: "fire",
+            fire: "earth"
+        }[ETowers[0][0]]
+    )
+    print(ETowers[0])
+    print(ETowers[1])
+    print("---")
+
+    let supportsTargetedForArcanum = random([true, false])
+    let westSideMeleesSwap = ["doom", "wind"].includes(WTowers[0][1]) ? supportsTargetedForArcanum : !supportsTargetedForArcanum
+    let westSideRangedSwap = !westSideMeleesSwap
+    let eastSideMeleesSwap = ["doom", "wind"].includes(ETowers[1][0]) ? supportsTargetedForArcanum : !supportsTargetedForArcanum
+    let eastSideRangedSwap = !eastSideMeleesSwap
+
+    let yourSwapVariable = {
+        "MT": westSideMeleesSwap,
+        "M1": westSideMeleesSwap,
+        "R1": westSideRangedSwap,
+        "H1": westSideRangedSwap,
+        "OT": eastSideMeleesSwap,
+        "M2": eastSideMeleesSwap,
+        "R2": eastSideRangedSwap,
+        "H2": eastSideRangedSwap
+    }[role]
+
 
 
     // make the background.
@@ -4686,12 +4899,481 @@ function setupIdyllicDream() {
                 {"name": "displayGreenDot", "args": [-107*scalingFactor, 0]},
                 {"name": "displayGreenDot", "args": [107*scalingFactor, 0]}
             ],
+            "greendots": [{
+                "x": -107*scalingFactor,
+                "y": 0,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": lightParty() === 1 ? 5.25 : 105,
+                    "positions": {
+                        "MT": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "H1": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "M1": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "R1": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "OT": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "H2": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "M2": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "R2": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor]
+                    },
+                    "yourPosition": [-107*scalingFactor, 0],
+                    "changeMovementType": false,
+                    "textAtTop": lightParty() === 1 ?
+                        "Wait for Lindwurm's Meteor to go off." +
+                        " \n[WARNING] — Platform size is estimated and" +
+                        " likely highly innacurate. Please take all" +
+                        " measurements with a grain of salt.":
+                        `You went to the wrong side and, uh, I don't want to simulate the complications that come with it...`,
+                    "textAtBottom": (lightParty() === 1 ? "[PASS] — " : "[FAIL] — ") +
+                        `You went to the west side ${lightParty() === 1 ? "and" : "but"} you are light party ${lightParty()}.`,
+                    "backgroundChange": false,
+                    "fail": lightParty() === 2,
+                    "pass": false
+                }
+            }, {
+                "x": 107*scalingFactor,
+                "y": 0,
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": lightParty() === 2 ? 5.25 : 105,
+                    "positions": {
+                        "MT": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "H1": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "M1": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "R1": [-(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "OT": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "H2": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "M2": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor],
+                        "R2": [(97*scalingFactor + random()*20*scalingFactor), -10*scalingFactor + random()*20*scalingFactor]
+                    },
+                    "yourPosition": [107*scalingFactor, 0],
+                    "changeMovementType": false,
+                    "textAtTop": lightParty() === 2 ?
+                        "Wait for Lindwurm's Meteor to go off." +
+                        " \n[WARNING] — Platform size is estimated and" +
+                        " likely highly innacurate. Please take all" +
+                        " measurements with a grain of salt.":
+                        `You went to the wrong side and, uh, I don't want to simulate the complications that come with it...`,
+                    "textAtBottom": (lightParty() === 2 ? "[PASS] — " : "[FAIL] — ") +
+                        `You went to the east side ${lightParty() === 2 ? "and" : "but"} you are light party ${lightParty()}.`,
+                    "backgroundChange": false,
+                    "fail": lightParty() === 2,
+                    "pass": false
+                }
+            }],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 105: Wrong side.
+        105: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayLindwurmsMeteorTelegraph", "args": [0, 80, 100, 5]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
             "greendots": [],
             "onArrive": false,
             "instantAdvance": false,
             "delayedAdvance": false
-        }
+        },
+        // 5.25: Getting there.
+        5.25: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayLindwurmsMeteorTelegraph", "args": [0, 80, 100, 5]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 5.5,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 5.5: Lindwurm's Meteor.
+        5.5: {
+            "arena": M12SP2Floor3,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayLindwurmsMeteor", "args": [lava]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 2500,
+                "advanceStageTo": 5.75,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": false,
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 5.75: Just a bit of time before towers.
+        5.75: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "push", "args": []},
+                {"name": "translateToCenterOfBoard", "args": []},
+                {"name": "displayCharacterPositions", "args": []},
+                {"name": "pop", "args": []}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 500,
+                "advanceStageTo": 6,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Where's your tower pickup spot?",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
+        // 6: Tower spot.
+        6: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2Towers", "args": [WTowers, ETowers, tower, {
+                        "fire": fireRock,
+                        "earth": earthRock,
+                        "doom": doomRock,
+                        "wind": windRock
+                    }, 60*scalingFactor, 90*scalingFactor, 0]},
+                {"name": "displayGreenDot", "args": [(lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor + 265/8*scalingFactor), 265/8*scalingFactor * (lightParty() === 1 ? 1 : -1)]},
+                {"name": "displayGreenDot", "args": [(lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor + 265/8*scalingFactor), -265/8*scalingFactor * (lightParty() === 1 ? 1 : -1)]},
+                {"name": "displayGreenDot", "args": [(lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor - 265/8*scalingFactor), 265/8*scalingFactor * (lightParty() === 1 ? 1 : -1)]},
+                {"name": "displayGreenDot", "args": [(lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor - 265/8*scalingFactor), -265/8*scalingFactor * (lightParty() === 1 ? 1 : -1)]}
+            ],
+            "greendots": [
+                { // Melee
+                    "x": (lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor + 265/8*scalingFactor),
+                    "y": 265/8*scalingFactor * (lightParty() === 1 ? 1 : -1),
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (meleeOrRanged(role) === "melee" && DPSOrSupport(role) === "DPS") ? 6.5 : 106,
+                        "positions": {
+                            "MT": [-320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor],
+                            "H1": [-320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "M1": [-320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "R1": [-320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "OT": [320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "H2": [320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "M2": [320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "R2": [320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor]
+                        },
+                        "yourPosition": false,
+                        "changeMovementType": false,
+                        "textAtTop": (meleeOrRanged(role) === "melee" && DPSOrSupport(role) === "DPS") ?
+                            "Wait for DPS or supports to get targeted." :
+                            `This is a melee's spot.`,
+                        "textAtBottom": (meleeOrRanged(role) === "melee" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went close to the boss. \n` +
+                            (DPSOrSupport(role) === "DPS" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went to the right side facing the boss. \n`,
+                        "backgroundChange": false,
+                        "fail": !(meleeOrRanged(role) === "melee" && DPSOrSupport(role) === "DPS"),
+                        "pass": false
+                    }
+                }, { // Tank
+                    "x": (lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor + 265/8*scalingFactor),
+                    "y": -265/8*scalingFactor * (lightParty() === 1 ? 1 : -1),
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (meleeOrRanged(role) === "melee" && DPSOrSupport(role) === "support") ? 6.5 : 106,
+                        "positions": {
+                            "MT": [-320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor],
+                            "H1": [-320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "M1": [-320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "R1": [-320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "OT": [320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "H2": [320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "M2": [320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "R2": [320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor]
+                        },
+                        "yourPosition": false,
+                        "changeMovementType": false,
+                        "textAtTop": (meleeOrRanged(role) === "melee" && DPSOrSupport(role) === "support") ?
+                            "Wait for DPS or supports to get targeted." :
+                            `This is a tank's spot.`,
+                        "textAtBottom": (meleeOrRanged(role) === "melee" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went close to the boss. \n` +
+                            (DPSOrSupport(role) === "support" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went to the left side facing the boss. \n`,
+                        "backgroundChange": false,
+                        "fail": !(meleeOrRanged(role) === "melee" && DPSOrSupport(role) === "support"),
+                        "pass": false
+                    }
+                }, { // Ranged
+                    "x": (lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor - 265/8*scalingFactor),
+                    "y": 265/8*scalingFactor * (lightParty() === 1 ? 1 : -1),
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (meleeOrRanged(role) === "ranged" && DPSOrSupport(role) === "DPS") ? 6.5 : 106,
+                        "positions": {
+                            "MT": [-320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor],
+                            "H1": [-320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "M1": [-320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "R1": [-320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "OT": [320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "H2": [320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "M2": [320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "R2": [320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor]
+                        },
+                        "yourPosition": false,
+                        "changeMovementType": false,
+                        "textAtTop": (meleeOrRanged(role) === "ranged" && DPSOrSupport(role) === "DPS") ?
+                            "Wait for DPS or supports to get targeted." :
+                            `This is a ranged's spot.`,
+                        "textAtBottom": (meleeOrRanged(role) === "ranged" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went far away from the boss. \n` +
+                            (DPSOrSupport(role) === "DPS" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went to the right side facing the boss. \n`,
+                        "backgroundChange": false,
+                        "fail": !(meleeOrRanged(role) === "ranged" && DPSOrSupport(role) === "DPS"),
+                        "pass": false
+                    }
+                }, { // Healer
+                    "x": (lightParty() === 1 ? 1 : -1) * (-320/3*scalingFactor - 265/8*scalingFactor),
+                    "y": -265/8*scalingFactor * (lightParty() === 1 ? 1 : -1),
+                    "small": false,
+                    "onclick": {
+                        "advanceStageTo": (meleeOrRanged(role) === "ranged" && DPSOrSupport(role) === "support") ? 6.5 : 106,
+                        "positions": {
+                            "MT": [-320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor],
+                            "H1": [-320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "M1": [-320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "R1": [-320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "OT": [320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor],
+                            "H2": [320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor],
+                            "M2": [320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor],
+                            "R2": [320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor]
+                        },
+                        "yourPosition": false,
+                        "changeMovementType": false,
+                        "textAtTop": (meleeOrRanged(role) === "ranged" && DPSOrSupport(role) === "support") ?
+                            "Wait for DPS or supports to get targeted." :
+                            `This is a healer's spot.`,
+                        "textAtBottom": (meleeOrRanged(role) === "ranged" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went far away from the boss. \n` +
+                            (DPSOrSupport(role) === "support" ? "[PASS] — " : "[FAIL] — ") +
+                            `You went to the left side facing the boss. \n`,
+                        "backgroundChange": false,
+                        "fail": !(meleeOrRanged(role) === "ranged" && DPSOrSupport(role) === "support"),
+                        "pass": false
+                    }
+                }
+            ],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 106: Wrong spot.
+        106: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2Towers", "args": [WTowers, ETowers, tower, {
+                        "fire": fireRock,
+                        "earth": earthRock,
+                        "doom": doomRock,
+                        "wind": windRock
+                    }, 60*scalingFactor, 90*scalingFactor, 0]}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 6.5: Get to tower spot.
+        6.5: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2Towers", "args": [WTowers, ETowers, tower, {
+                        "fire": fireRock,
+                        "earth": earthRock,
+                        "doom": doomRock,
+                        "wind": windRock
+                    }, 60*scalingFactor, 90*scalingFactor, 0]}
+            ],
+            "greendots": [],
+            "onArrive": {
+                "advanceStageTo": 7,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "People have been targeted with Arcadian Arcanum. Do you swap?",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            },
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 7: Swaps + Arcadian Arcanum.
+        7: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayTransparencyResolvedAoE", "args": [arcadianArcanum, supportsTargetedForArcanum ? "MT" : "M1", false, 100*scalingFactor, 1000, true]},
+                {"name": "displayTransparencyResolvedAoE", "args": [arcadianArcanum, supportsTargetedForArcanum ? "OT" : "M2", false, 100*scalingFactor, 1000, true]},
+                {"name": "displayTransparencyResolvedAoE", "args": [arcadianArcanum, supportsTargetedForArcanum ? "H1" : "R1", false, 100*scalingFactor, 1000, true]},
+                {"name": "displayTransparencyResolvedAoE", "args": [arcadianArcanum, supportsTargetedForArcanum ? "H2" : "R2", false, 100*scalingFactor, 1000, true]},
+                {"name": "displayM12SP2Towers", "args": [WTowers, ETowers, tower, {
+                        "fire": fireRock,
+                        "earth": earthRock,
+                        "doom": doomRock,
+                        "wind": windRock
+                    }, 60*scalingFactor, 90*scalingFactor, 0]},
+                {"name": "displayGreenDot", "args": [[[-320/3*scalingFactor + 265/8*scalingFactor, 320/3*scalingFactor - 265/8*scalingFactor], [-320/3*scalingFactor - 265/8*scalingFactor, 320/3*scalingFactor + 265/8*scalingFactor]][meleeOrRanged(role) === "melee" ? 0 : 1][lightParty() === 1 ? 0 : 1], 265/8*scalingFactor]},
+                {"name": "displayGreenDot", "args": [[[-320/3*scalingFactor + 265/8*scalingFactor, 320/3*scalingFactor - 265/8*scalingFactor], [-320/3*scalingFactor - 265/8*scalingFactor, 320/3*scalingFactor + 265/8*scalingFactor]][meleeOrRanged(role) === "melee" ? 0 : 1][lightParty() === 1 ? 0 : 1], -265/8*scalingFactor]}
+            ],
+            "greendots": [{ // Swap
+                "x": [[-320/3*scalingFactor + 265/8*scalingFactor, 320/3*scalingFactor - 265/8*scalingFactor], [-320/3*scalingFactor - 265/8*scalingFactor, 320/3*scalingFactor + 265/8*scalingFactor]][meleeOrRanged(role) === "melee" ? 0 : 1][lightParty() === 1 ? 0 : 1],
+                "y": 265/8*scalingFactor * (lightParty() === 1 ? 1 : -1) * (DPSOrSupport(role) === "support" ? 1 : -1),
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": yourSwapVariable ? 7.5 : 107,
+                    "positions": {
+                        "MT": [-320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor * (westSideMeleesSwap ? -1 : 1)],
+                        "H1": [-320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor * (westSideRangedSwap ? -1 : 1)],
+                        "M1": [-320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor * (westSideMeleesSwap ? -1 : 1)],
+                        "R1": [-320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor * (westSideRangedSwap ? -1 : 1)],
+                        "OT": [320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor * (eastSideMeleesSwap ? -1 : 1)],
+                        "H2": [320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor * (eastSideRangedSwap ? -1 : 1)],
+                        "M2": [320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor * (eastSideMeleesSwap ? -1 : 1)],
+                        "R2": [320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor * (eastSideRangedSwap ? -1 : 1)]
+                    },
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": yourSwapVariable ?
+                        "It's back to stacks and defas soon!" :
+                        `You should not have swapped.`,
+                    "textAtBottom": (yourSwapVariable ? "[PASS] — " : "[FAIL] — ") +
+                        `You swapped.`,
+                    "backgroundChange": false,
+                    "fail": !yourSwapVariable,
+                    "pass": false
+                }
+            }, { // No swap
+                "x": [[-320/3*scalingFactor + 265/8*scalingFactor, 320/3*scalingFactor - 265/8*scalingFactor], [-320/3*scalingFactor - 265/8*scalingFactor, 320/3*scalingFactor + 265/8*scalingFactor]][meleeOrRanged(role) === "melee" ? 0 : 1][lightParty() === 1 ? 0 : 1],
+                "y": -265/8*scalingFactor * (lightParty() === 1 ? 1 : -1) * (DPSOrSupport(role) === "support" ? 1 : -1),
+                "small": false,
+                "onclick": {
+                    "advanceStageTo": !yourSwapVariable ? 7.5 : 107,
+                    "positions": {
+                        "MT": [-320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor * (westSideMeleesSwap ? -1 : 1)],
+                        "H1": [-320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor * (westSideRangedSwap ? -1 : 1)],
+                        "M1": [-320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor * (westSideMeleesSwap ? -1 : 1)],
+                        "R1": [-320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor * (westSideRangedSwap ? -1 : 1)],
+                        "OT": [320/3*scalingFactor - 265/8*scalingFactor, 265/8*scalingFactor * (eastSideMeleesSwap ? -1 : 1)],
+                        "H2": [320/3*scalingFactor + 265/8*scalingFactor, 265/8*scalingFactor * (eastSideRangedSwap ? -1 : 1)],
+                        "M2": [320/3*scalingFactor - 265/8*scalingFactor, -265/8*scalingFactor * (eastSideMeleesSwap ? -1 : 1)],
+                        "R2": [320/3*scalingFactor + 265/8*scalingFactor, -265/8*scalingFactor * (eastSideRangedSwap ? -1 : 1)]
+                    },
+                    "yourPosition": false,
+                    "changeMovementType": false,
+                    "textAtTop": !yourSwapVariable ?
+                        "It's back to stacks and defas soon!" :
+                        `You should have swapped.`,
+                    "textAtBottom": (!yourSwapVariable ? "[PASS] — " : "[FAIL] — ") +
+                        `You didn't swap.`,
+                    "backgroundChange": false,
+                    "fail": yourSwapVariable,
+                    "pass": false
+                }
+            }],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 107: Swapped incorrectly OR didn't swap when supposed to.
+        107: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2Towers", "args": [WTowers, ETowers, tower, {
+                        "fire": fireRock,
+                        "earth": earthRock,
+                        "doom": doomRock,
+                        "wind": windRock
+                    }, 60*scalingFactor, 90*scalingFactor, 0]}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": false
+        },
+        // 7.5: Good hippo.
+        7.5: {
+            "arena": M12SP2Floor4,
+            "arenaRotation": arenaRotation,
+            "functions": [
+                {"name": "displayIncomingArenaTransition", "args": []},
+                {"name": "displayBoss", "args": [hitbox, 0, 0, 100*scalingFactor, [0, -10*scalingFactor]]},
+                {"name": "displayM12SP2Towers", "args": [WTowers, ETowers, tower, {
+                        "fire": fireRock,
+                        "earth": earthRock,
+                        "doom": doomRock,
+                        "wind": windRock
+                    }, 60*scalingFactor, 90*scalingFactor, 1]}
+            ],
+            "greendots": [],
+            "onArrive": false,
+            "instantAdvance": false,
+            "delayedAdvance": {
+                "delayMillis": 3700,
+                "advanceStageTo": 8,
+                "positions": {},
+                "yourPosition": false,
+                "changeMovementType": false,
+                "textAtTop": "Where's your stack/defa spot?",
+                "textAtBottom": false,
+                "backgroundChange": false,
+                "pass": false
+            }
+        },
     }
+
+
 
     script[1.5].delayedAdvance.positions[NTether] = [0, -50*scalingFactor]
     script[1.5].delayedAdvance.positions[ETether] = [50*scalingFactor, 0]
@@ -4800,6 +5482,11 @@ function setupIdyllicDream() {
     script[4].greendots[3].onclick.positions[WTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
     script[4].greendots[3].onclick.positions[NWTether] = [random([-110*scalingFactor, 90*scalingFactor]) + random()*20*scalingFactor, (northSidesSafe ? -110*scalingFactor : 90*scalingFactor) + random()*20*scalingFactor]
 
+    script[6].greendots[0].onclick.yourPosition = [script[6].greendots[0].x, script[6].greendots[0].y]
+    script[6].greendots[1].onclick.yourPosition = [script[6].greendots[1].x, script[6].greendots[1].y]
+    script[6].greendots[2].onclick.yourPosition = [script[6].greendots[2].x, script[6].greendots[2].y]
+    script[6].greendots[3].onclick.yourPosition = [script[6].greendots[3].x, script[6].greendots[3].y]
+
     instructions.html(`<pre>
 numpad 1 → freeze sketch
 
@@ -4857,7 +5544,7 @@ function glowRect(h, s, b, a, weight, param1, param2, param3, param4, param5 = 0
     rect(param1, param2, param3, param4, param5, param6, param7, param8)
 }
 
-function glowCircle(h, s, b, a, weight, param1, param2, param3) {
+function glowCircle(h, s, b, a, weight, param1, param2, param3, mainGlowMult = 1) {
     // strokeWeight(weight)
     // stroke(h, s, b, a)
     // circle(param1, param2, param3)
@@ -4933,19 +5620,19 @@ function glowCircle(h, s, b, a, weight, param1, param2, param3) {
     circle(param1, param2, param3)
 
     strokeWeight(weight/2.9)
-    stroke(h, s, b, a/2)
+    stroke(h, s, b, a/2 *mainGlowMult)
     circle(param1, param2, param3)
 
     strokeWeight(weight/3)
-    stroke(h, s, b, a/2)
+    stroke(h, s, b, a/2 *mainGlowMult)
     circle(param1, param2, param3)
 
 
-    blendMode(NORMAL)
+    blendMode(BLEND)
     pop()
 }
 
-function glowLine(h, s, b, a, weight, param1, param2, param3, param4) {
+function glowLine(h, s, b, a, weight, param1, param2, param3, param4, mainGlowMult = 1) {
     // strokeWeight(weight)
     // stroke(h, s, b, a)
     // line(param1, param2, param3, param4)
@@ -5021,15 +5708,15 @@ function glowLine(h, s, b, a, weight, param1, param2, param3, param4) {
     line(param1, param2, param3, param4)
 
     strokeWeight(weight/2.9)
-    stroke(h, s, b, a/2)
+    stroke(h, s, b, a/2 *mainGlowMult)
     line(param1, param2, param3, param4)
 
     strokeWeight(weight/3)
-    stroke(h, s, b, a/2)
+    stroke(h, s, b, a/2 *mainGlowMult)
     line(param1, param2, param3, param4)
 
 
-    blendMode(NORMAL)
+    blendMode(BLEND)
     pop()
 }
 
